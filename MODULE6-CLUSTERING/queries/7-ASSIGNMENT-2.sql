@@ -50,10 +50,10 @@ WHERE p_partkey = 65985958;
 --- ANSWER:
 
 
-    Snowflake scans micro partitions
-     well if you use numeric values as
-      filter than string value. Over 
-      numeric values snowflake will
-       maintain stats internally about min,
-        max values. Which helps to scan micro
-         partitions easily.
+    -- Snowflake scans micro partitions
+    --  well if you use numeric values as
+    --   filter than string value. Over 
+    --   numeric values snowflake will
+    --    maintain stats internally about min,
+    --     max values. Which helps to scan micro
+    --      partitions easily.
