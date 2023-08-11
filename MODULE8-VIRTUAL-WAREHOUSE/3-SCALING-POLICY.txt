@@ -204,6 +204,29 @@ standard:
         SUCCESSFUL checks (performed at 1-minute intervals),
         WHICH DETERMINE WHETHER THE LOAD ON THE LEAST-LOADED 
         CLUSTER COULD BE REDISTRIBUTED TO THE OTHER 
+        CLUSTERS WITHOUT SPINNING UP 
+        THE CLUSTER AGAIN..
+
+
+
+
+
+
+ECONOMY:
+
+        After 5 to 6 consecutive SUCCESSFUL checks 
+        (1 minute intervals),
+        WHICH DETERMINE THE LOAD ON THE LEAST-LOADED 
+        CLUSTER COULD BE REDISTRIBUTED 
+
+        TO OTHER CLUSTERS WITHOUT SPINNING UP THE 
+        CLUSTER AGAIN....
+
+
+
+
+
+
         
 
 
