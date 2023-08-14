@@ -212,3 +212,11 @@ cada 1 de nossos schemas..
 
 --> também podemos ver os privileges..
 
+
+
+
+
+
+
+
+
