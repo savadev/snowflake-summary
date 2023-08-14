@@ -1,5 +1,4 @@
 
-
 -- Warehouse will give information about credit information.
 -- WAREHOUSE_HISTORY view will calculate credit and cost grouped by warehouse name.
 
@@ -97,6 +96,9 @@ WAREHOUSE_HISTORY AS
 SELECT SUM(COST) COST
 FROM OVERVIEW
 WHERE CRITERIA='SNOWFLAKE_WAREHOUSE_COST'
+-- WHERE CRITERIA='QUERY_EXECUTION_COST'
 -- WHERE CRITERIA='IDLE_COST' -- o idle cost de suas maquinas (é um value dentro do snowflake_warehouse_cost)
   AND WAREHOUSE_NAME='COMPUTE_WH'; -- insert value in here
-  -- AND  START_TIME=daterange;  -- insert value in here
+  -- AND WAREHOUSE_NAME=:my_warehouse; -- custom filter (created by us) example.
+-- AND  WAREHOUSE_NAME=:Warehouse;  -- insert value in here (dynamic, use SNOWSIGHT to insert value) -- and ':Warehouse' is a custom filter, created by us
+-- AND  START_TIME=:daterange;  -- insert value in here (dynamic, use SNOWSIGHT to insert value)
