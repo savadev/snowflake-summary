@@ -52,3 +52,6 @@ E COMO PODEMOS
 CONECTAR A CLI DO SNOWFLAKE 
 
 COM O GITPOD..... (nunca fiz isso)...
+
+
+
