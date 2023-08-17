@@ -853,4 +853,10 @@ com a sintaxe de "T.$1", etc etc... --->
 
     E QUAL O SEU PROPÓSITO....
 
+
+
+
+
+
+
     
