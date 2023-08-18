@@ -842,7 +842,7 @@ DOS ARQUIVOS CARREGADOS LÁ DO STAGE,
 
 BASTA USAR A SINTAXE DE 
 
-"table_name.$1", "tab_name.$2', etc...
+"table_name.$1", "tab_name.$2", etc...
 
 
 
