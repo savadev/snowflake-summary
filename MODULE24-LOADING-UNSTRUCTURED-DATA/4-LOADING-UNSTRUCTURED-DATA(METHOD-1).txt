@@ -919,3 +919,19 @@ SUA PERFORMANCE VAI CAIR, COM O TEMPO...
 
 
 
+nesse primeiro "method' do professor,
+
+ele NAO CONVERTEU A UNSTRUCTURED DATA (
+
+   nessa table de "variant"
+) 
+
+
+PARA UMA TABLE COMUM, PERMANENT (
+
+   e é por isso que esse approach é ruim,
+
+   ficamos dependendo dessas optimizacoes do 
+
+   snowflake em cima de unstructured data...
+)
