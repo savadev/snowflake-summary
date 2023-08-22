@@ -102,5 +102,9 @@ SEU CUSTO
 COM FAIL SAFE VAI ACABAR CRESCENDO EXPONENCIALMENTE...
 
 
+(ainda mais se suas tables sao usadas com staging)....
+
+
+
 
 
