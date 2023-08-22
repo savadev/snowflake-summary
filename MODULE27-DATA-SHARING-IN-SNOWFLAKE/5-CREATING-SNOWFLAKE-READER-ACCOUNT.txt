@@ -222,3 +222,9 @@ temos o value da url que deve ser usada para conseguirmos acessar
 
 
 essa reader account...
+
+
+
+
+
+NA PRÓXIMA AULA VEREMOS COMO CONFIGURAR ESSA READER ACCOUNT...
