@@ -1,147 +1,19 @@
+-- --- Create integration object 
+-- CREATE OR REPLACE STORAGE INTEGRATION S3_INTEGRATION
+--     TYPE=EXTERNAL_STAGE
+--     STORAGE_PROVIDER=S3
+--     ENABLED=TRUE
+--     STORAGE_AWS_ROLE_ARN='<your_aws_arn_here>'
+--     STORAGE_ALLOWED_LOCATIONS=('s3://new-snowflake-course-bucket/CSV3/');
 
+SHOW STORAGE INTEGRATIONS;
 
 
 
 
+ALTER STORAGE INTEGRATION S3_INTEGRATION 
+SET STORAGE_ALLOWED_LOCATIONS=('s3://new-snowflake-course-bucket/CSV3/');
 
-
-O ESQUEMA É:
-
-
-
-
-
-
-
-1) (PREPARO) --> RODAR O COMANDO SH, PARA INICIAR O UPLOAD 
-DE DADOS (é tipo o mock)
-
-
-
-
-
-2) SETTAR 1 SNOWPIPE, COM O SNOWFLAKE + AWS (integracao)
-
-(uso de SQS, simple queue service)
-
-
-3) SETTAR 1 COMANDO PARA AUTOREFRESHAR O PIPE (casos de ERROR),
- 
-
- PROVAVELMENTE UMA TASK...
-
-
-
-
-
-4) O PIPE VAI FAZER O LOAD AUTOMÁTICO 
-
-
-
-DE DATA NA NOSSA STAGING TABLE
-
-
-
-5) COM BASE NESSA STAGING TABLE, 
-
-PODEMOS CRIAR 
-
-STREAMS (2 streams)...
-
-
-
-
-
-
-5.A) CRIAMOS 1 STREAM A,
-
-QUE VAI CAPTURAR A DATA DA STAGING TABLE...
-
-
-
-
-
-
-5.B) CRIAMOS 1 STREAM B, QUE TAMBÉM VAI CAPTURAR 
-
-A DATA DA STAGING TABLE, MAS DE FORMA DIFERENTE...
-
-
-
-
-
-
-
-6.A) CRIAMOS UMA TASK A, QUE VAI 
-COPIAR AUTOMATICAMENTE DATA/AS CHANGES 
-PARA DENTRO DA FINAL TABLE A,
-
-sempre que detectar que a stream A está 
-com dados/changes captadas...
-
-
-
-
-6.B) CRIAMOS UMA TASK B, QUE VAI 
-COPIAR AUTOMATICAMENTE DATA/AS CHANGES 
-PARA DENTRO DA FINAL TABLE B,
-
-sempre que detectar que a stream B está 
-com dados/changes captadas...
-
-
-
-
-
-
----------------------------------------
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-ok... AGORA VEREMOS O CÓDIGO PARA FAZER TUDO ISSO...
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
---> COMEÇAMOS ASSIM:
-
-
-
-
-
-
-
-
---- Create integration object 
-CREATE OR REPLACE STORAGE INTEGRATION S3_INTEGRATION
-    TYPE=EXTERNAL_STAGE
-    STORAGE_PROVIDER=S3
-    ENABLED=TRUE
-    STORAGE_AWS_ROLE_ARN='<your_aws_arn_here>'
-    STORAGE_ALLOWED_LOCATIONS=('s3://new-snowflake-course-bucket/CSV3/');
 
 
 
@@ -168,10 +40,14 @@ CREATE OR REPLACE FILE FORMAT CSV_FILE_FORMAT
 -- Create stage 
 CREATE OR REPLACE STAGE SNOW_STAGE
 STORAGE_INTEGRATION=S3_INTEGRATION
-URL='s3://new-snowflake-course-bucket/'
+URL='s3://new-snowflake-course-bucket/CSV3/'
 FILE_FORMAT=(
     FORMAT_NAME=CSV_FILE_FORMAT
 );
+
+
+
+
 
 
 
@@ -235,7 +111,9 @@ NTA  Varchar
 
 
 
-        -- (uses column data of other table to create table, very handy)
+
+
+            -- (uses column data of other table to create table, very handy)
 -- Create snowflake tables to load data for LC and NJ cities 
 CREATE OR REPLACE TRANSIENT TABLE LC_PARKING LIKE STAGING_TABLE;
 CREATE OR REPLACE TRANSIENT TABLE NJ_PARKING LIKE STAGING_TABLE;
@@ -245,8 +123,6 @@ CREATE OR REPLACE TRANSIENT TABLE NJ_PARKING LIKE STAGING_TABLE;
 
 TRUNCATE TABLE SNOWPIPE.PUBLIC.LC_PARKING;
 TRUNCATE TABLE SNOWPIPE.PUBLIC.NJ_PARKING;
-
-
 
 
 SELECT * FROM DEMO_DB.PUBLIC.STAGING_TABLE;
@@ -259,24 +135,6 @@ SELECT * FROM DEMO_DB.PUBLIC.NJ_PARKING;
 
 
 
-----------------------------
-
-
-
-
-
-
-
-
-DEPOIS DISSO, TEMOS A PARTE DE CRIAÇÃO DO SNOWPIPE...
-
-
-
---> ele vai capturar a data que chega no aws s3,
-
-e aí vai dumpar/copiar essa data para dentro 
-
-de nossa staging table...
 
 
 
@@ -286,7 +144,6 @@ de nossa staging table...
 
 
 
---- Create snowpipe to continuously load data (capture changes/data uploaded to s3)...
 CREATE OR REPLACE PIPE DEMO_DB.PUBLIC.SNOWPIPE
     AUTO_INGEST=TRUE
 AS COPY INTO DEMO_DB.PUBLIC.STAGING_TABLE -- meat of the pipe (wrapped part)
@@ -300,11 +157,11 @@ AS COPY INTO DEMO_DB.PUBLIC.STAGING_TABLE -- meat of the pipe (wrapped part)
 
 
 
-
-
-
 SHOW PIPES;
 SHOW TASKS;
+
+
+ALTER TASK TGT_MERGE SUSPEND;
 
 
 
@@ -313,6 +170,19 @@ SHOW TASKS;
 
 
 SELECT SYSTEM$PIPE_STATUS('snowpipe');
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -344,48 +214,6 @@ SELECT * FROM TABLE(
 
 
 
-
-
-
---> SE ALGUM ERRO ACONTECEU, PODEMOS RODAR ESSES 
-
-COMANDOS PARA VALIDATE A PIPE LOAD....
-
-
-
-
-
-
-
-
-
-
---> TEMOS TAMBÉM
- 
-
-
-
-
-
-
---- NECESSÁRIO, PARA QUE NOVAS FILES CONSIGAM TER SEU CONTEÚDO EXTRAÍDO...
- ALTER PIPE SNOWPIPE REFRESH;
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
  --- CREATE STREAM OBJECTS (one for 
 ---  each final table) TO CAPTURE CHANGES IN STAGING TABLE...
 
@@ -395,40 +223,6 @@ ON TABLE DEMO_DB.PUBLIC.STAGING_TABLE;
 
 CREATE OR REPLACE STREAM NJ_PARKING_STREAM 
 ON TABLE DEMO_DB.PUBLIC.STAGING_TABLE;
-
-
-
-
-
----------------------------------
-
-
-
-
-
-
-
-AÍ CRIAREMOS UMA TASK, CUJO PROPÓSITO 
-
-ÚNICO SERÁ DE COPIAR A DATA DESSA STREAM,
-
-STREAM SOBRE A STAGING TABLE,
-
-PARA 
-
-DENTRO 
-
-
-DA FINAL TABLE DE "LC"...
-
-
-
-
-
-
-
-
-
 
 
 
@@ -449,6 +243,10 @@ WHERE REGISTRATION_STATE='LC';
 
 
 
+
+
+
+
 -- START TASK 
 ALTER TASK LC_PARKING RESUME;
 
@@ -456,46 +254,6 @@ ALTER TASK LC_PARKING RESUME;
 
 
 
-
---> COM ISSO, PEGAREMOS __aPENAS__ 
-
-A DATA 
-
-
-DO STATE DE "LC"
-
-
-E COLOCAREMOS NA TABLE FINAL....
-
-
-
-
-
-
-
-
-
-
---> CERTO, MAS A DATA DO STATE DE "NJ"
-
-nao vai ficar para sempre nessa stream,
-
-entao? (pq nunca será usada)...
-
-
-
-
-
-
-
-
-
-
-
---> fAZEMOS A MESMA COISA COM A OUTRA STREAM,
-
-
-DE "NJ":
 
 
 
@@ -516,22 +274,6 @@ WHERE REGISTRATION_STATE='NJ';
 
 
 ALTER TASK NJ_PARKING RESUME;
-
-
-
-
------------------------------------
-
-
-
-
-
-
-
-
-aí podemos validar,
-
-assim:
 
 
 
@@ -558,24 +300,5 @@ TRUNCATE TABLE DEMO_DB.PUBLIC.STAGING_TABLE;
 
 
 SHOW TASKS;
-
-
-
-
-
-
-
-
-
-
-OK... AGORA TEMOS QUE TESTAR ESSE WORKFLOW TODO....
-
-
-
-
-
-VEREMOS ISSO NA PRÓXIMA AULA, "EXECUTION"...
-
-
 
 

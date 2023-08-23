@@ -1,3 +1,89 @@
+
+
+
+
+
+
+
+
+
+--> AGORA DEVEMOS EXECUTAR O CÓDIGO 
+
+
+
+
+DA ÚLTIMA LECTURE,
+
+PARA CONSEGUIR CARREGAR 
+
+DATA CONTINUAMENTE,
+
+ 
+ LÁ DO AWS S3...
+
+
+
+
+
+
+
+ --> A PRIMEIRA COISA QUE VC 
+
+ DEVE FAZER É CHECAR 
+
+ SE 
+
+
+
+
+SEU INTEGRATION OBJECT ESTÁ CONFIGURADO CORRETAMENTE...
+
+
+
+
+
+
+
+
+
+
+
+
+-->  AÍ PODEMOS RODAR NOSSO ARQUIVO SHELL,
+
+
+COM 
+
+
+
+
+sh upload_to_s3_my_version.sh
+
+
+
+
+
+
+
+o código todo do sh é este:
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 #!/bin/sh
 
 aws s3 cp /home/arthur/Downloads/archive-ticket/parking_aa.csv		s3://new-snowflake-course-bucket/CSV3/
@@ -210,3 +296,266 @@ aws s3 cp /home/arthur/Downloads/archive-ticket/parking_gt.csv		s3://new-snowfla
 aws s3 cp /home/arthur/Downloads/archive-ticket/parking_gu.csv		s3://new-snowflake-course-bucket/CSV3/
 aws s3 cp /home/arthur/Downloads/archive-ticket/parking_gv.csv		s3://new-snowflake-course-bucket/CSV3/
 aws s3 cp /home/arthur/Downloads/archive-ticket/parking_gw.csv		s3://new-snowflake-course-bucket/CSV3/
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+ENQUANTO ESSAS FILES SAO UPLOADADAS,
+
+
+
+PODEMOS CHECAR O STATE DE NOSSAS TABLES...
+
+
+
+
+
+
+
+
+
+OK, A DATA ESTÁ SENDO COPIADA...
+
+
+
+
+
+
+
+
+MAS HÁ UM PROBLEMA COM O SNOWPIPE, NO ENTANTO...
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+DIGAMOS QUE FAZEMOS TRUNCATE DE TODAS AS TABLES..
+
+
+
+
+
+
+
+
+
+--> E DIGAMOS QUE REMOVEMOS TODA A DATA DO S3...
+
+
+
+
+
+
+
+
+
+
+
+
+--> SE TENTARMOS ENVIAR ESSAS MESMAS FILES CSV,
+
+MAIS UMA VEZ,
+
+COM O COMANDO SH,
+
+
+VAMOS FALHAR...
+
+
+
+
+
+
+--> VAMOS FALHAR PQ O SNOWPIPE 
+
+
+QUE USAMOS JÁ TERÁ REGISTRADO OS NOMES DESSAS FILES...
+
+
+(
+
+     e ele nao gosta/se recusa a enviar data 
+
+     de files com MESMO NOME...
+)
+
+
+
+
+
+
+
+
+
+
+
+--> PARA VERIFICAR ISSO, BASTA RODAR 
+
+
+
+
+ALTER PIPE DEMO_DB.PUBLIC.SNOWPIPE REFRESH;
+
+
+
+
+
+
+
+
+
+
+
+
+
+-> VEREMOS QUE TEMOS MTAS FILES JÁ REGISTRADAS 
+
+
+COMO "SENT"...
+
+
+
+
+
+
+
+
+
+
+
+
+--> QUER DIZER QUE SE QUEREMOS 
+
+
+
+CARREGAR 
+
+ESSA FILE MAIS UMA VEZ,
+
+
+SOMOS __ OBRIGADOS_ A RECRIAR O SNOWPIPE OBJECT (
+    ou renomear o arquivo...
+)
+
+
+
+
+
+
+
+
+
+
+--> mas 1 catch é que 
+
+SE VC RECRIAR O SNOWPIPE,
+
+VC VAI __ PERDER__ TODA A METADATA 
+
+DO SNOWPIPE...
+
+
+
+
+
+
+
+--> E SE VC REUPLOADAR A MESMA 
+
+FILE QUE 
+
+
+VC HAVIA COPIADO ANTES,
+
+
+ISSO VAI ACABAR 
+
+
+DEIXANDO SUA TABLE COM DUPLICATES...
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+--> ESSE É UM PROBLEMA,
+
+UM PROBLEMAO...
+
+
+
+
+
+
+
+
+
+--> PRECISAMOS ENCONTRAR 1 SOLUCAO 
+
+
+A ESSE PROBLEMA...
+
+
+
+
+
+
+
+OK... VIMOS COMO INTEGRAR TODAS ESSAS FEATURES...
+
+
+
+
+
