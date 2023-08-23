@@ -65,3 +65,5 @@ SELECT * FROM SNOWFLAKE_SAMPLE_DATA.TPCDS_SF100TCL.WEB_RETURNS SAMPLE SYSTEM(10)
 
 
 -- The system/block query was significantly faster.
+
+
