@@ -307,3 +307,31 @@ NAQUELE SCHEDULE...
 
 
 
+
+
+
+
+
+
+
+--> podemos ver o result de todas as tasks (se foi failed ou nao)...
+
+
+
+
+
+
+
+
+--> CADA EXECUCAO DE TASK NOS DÁ A RAZAO DE ERROR,
+
+SE OCORRIDO...
+
+
+
+
+
+
+
+
+
