@@ -935,3 +935,62 @@ SNOWFLAKE FEATURES TO ACHIEVE THE SAME RESULTS...
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+LIMITATIONS OF MATERIALIZED VIEWS:
+
+
+
+
+
+The following limitations apply to creating materialized views:
+A materialized view can query only a single table.
+
+Joins, including self-joins, are not supported.
+
+A materialized view cannot query:
+
+A materialized view.
+
+A non-materialized view.
+
+A UDTF (user-defined table function).
+
+A materialized view cannot include:
+
+UDFs (this limitation applies to all types of user-defined functions, including external functions).
+
+Window functions.
+
+HAVING clauses.
+
+ORDER BY clause.
+
+LIMIT clause.
+
+GROUP BY keys that are not within the SELECT list. All GROUP BY keys in a materialized view must be part of the SELECT list.
+
+GROUP BY GROUPING SETS.
+
+GROUP BY ROLLUP.
+
+GROUP BY CUBE.
+
+Nesting of subqueries within a materialized view.
+
+Read more at,
+
+
+
