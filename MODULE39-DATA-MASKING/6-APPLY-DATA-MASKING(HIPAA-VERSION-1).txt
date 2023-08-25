@@ -838,3 +838,46 @@ ESSA POLICY...
 --> A OUTRA MANEIRA É RODANDO UNSET... mas essa maneira 
 
 pode ser nada segura...
+
+
+
+
+
+
+
+
+
+
+
+
+mas real use-cases nao serao tao simples...
+
+
+
+
+hipaa rules podem ficar bem complexas..
+
+
+
+
+
+
+
+VIMOS QUE O IDEAL É RODAR O COMANDO DE ALTER, 
+na parte do body da masking policy...
+
+
+
+
+
+
+
+
+
+
+
+
+--. NA PRÓXIMA AULA VEREMOS 1 CENÁRIO MAIS COMPLEXO,
+
+PARA TER ESSE DATA MASKING...
+
