@@ -89,6 +89,36 @@ create or replace procedure column_fill_rate(TABLE_NAME varchar)
   return table_as_json; 
   $$
   ;
+    CREATE OR REPLACE PROCEDURE CLONE_TABLE_CALLER (SRC_TABLE_NAME STRING, TARGET_TABLE_NAME STRING)
+        RETURNS STRING 
+        LANGUAGE JAVASCRIPT
+        EXECUTE AS CALLER -- é aqui se definimos se será uma "OWNER PROCEDURE" ou uma "CALLER PROCEDURE"...
+        AS 
+        $$
+
+        var sql_statement = 'CREATE TRANSIENT TABLE DEMO_DB.PUBLIC.' + CLONE_TABLE_NAME + 'CLONE' + 'DEMO_DB_OWNER.PUBLIC' + SRC_TABLE_NAME;
+
+        var clone_statement = snowflake.createStatement(
+            {
+                sqlText: sql_statement
+            }
+        );
+
+        clone_statement.execute();
+
+
+        var grant = 'GRANT ALL ON TABLE DEMO_DB.PUBLIC.' + CLONE_TABLE_NAME + 'TO ROLE SANDBOX';
+        // return grant
+        var grant_usage = snowflake.createStatement(
+            {
+                sqlText: grant
+            }
+        );
+
+        grant_usage.execute();
+
+        $$
+
 
 
 -- Let's put some scenarios for our procedure and test it
