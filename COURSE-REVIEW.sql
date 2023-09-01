@@ -166,4 +166,17 @@ SET AUTO_SUSPEND=900;
 
 
 
+
+
 -- MODULE 3 --
+
+
+
+-- Clustering Tips:
+
+
+-- 1) Clustering is the process of grouping of records inside micro-partitions.
+
+-- 2) Clustering is done automatically by Snowflake, using the order in which the data was inserted as basis.
+
+-- 3) You can override the automatic clustering done by snowflake, by providing custom cluster keys.
