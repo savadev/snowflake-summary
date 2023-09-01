@@ -16,9 +16,37 @@ auto_suspend = 180
 auto_resume = true
 initially_suspended=true;
 
+-- Warehouse Sizes. For each increase in size, the compute costs per hour (credits) are doubled.
+
+-- XSMALL , 'X-SMALL'  1
+-- SMALL    2
+-- MEDIUM   4
+-- LARGE    8
+-- XLARGE , 'X-LARGE'   16
+-- XXLARGE , X2LARGE , '2X-LARGE'   32
+-- XXXLARGE , X3LARGE , '3X-LARGE'  64
+-- X4LARGE , '4X-LARGE'     128
+
+-- Force resume a warehouse. "OPERATE" privileges are needed to run this query.
+ALTER WAREHOUSE audiencelab_main RESUME;
+
+-- Force suspend a warehouse. "OPERATE" privileges are needed to run this query. Warehouse will only suspend after it has finished running its queries.
+ALTER WAREHOUSE audiencelab_main SUSPEND;
+
+-- Statements to check what was executed in a warehouse (metadata, ACCOUNTADMIN needed):
+
+SELECT * FROM TABLE(INFORMATION_SCHEMA.WAREHOUSE_LOAD_HISTORY(DATE_RANGE_START=>DATEADD('HOUR',-1,CURRENT_TIMESTAMP())));
+
+SELECT * FROM TABLE(INFORMATION_SCHEMA.WAREHOUSE_METERING_HISTORY(DATEADD('SEC',-500,CURRENT_DATE()),CURRENT_DATE()));
+
+SELECT * FROM TABLE(INFORMATION_SCHEMA.WAREHOUSE_METERING_HISTORY(CURRENT_DATE()));
+
+
+
+
+
 
 -- Creating Databases, Schemas and Tables - Permanent, Transient and Temporary.
-
 
 -- Databases
 CREATE OR REPLACE DATABASE DEMO_DB; -- PERMANENT (fail-safe, retention period of 0-90 days. 0 disables it)
@@ -27,16 +55,12 @@ CREATE OR REPLACE TRANSIENT DATABASE DEMO_DB; -- TRANSIENT (no fail-safe, max re
 
 CREATE OR REPLACE TEMPORARY DATABASE DEMO_DB; -- TEMPORARY (session-only, no fail-safe, no retention) -- all objects inside of database will be temporary
 
-
-
 -- Schemas
 CREATE OR REPLACE SCHEMA DEMO_DB.SOME_SCHEMA; -- PERMANENT 
 
 CREATE OR REPLACE TRANSIENT SCHEMA DEMO_DB.SOME_SCHEMA; -- TRANSIENT 
 
 CREATE OR REPLACE TEMPORARY SCHEMA DEMO_DB.SOME_SCHEMA; -- TEMPORARY 
-
-
 
 -- Tables
 CREATE OR REPLACE TABLE DEMO_DB.PUBLIC.SOME_TABLE; -- PERMANENT
@@ -139,3 +163,7 @@ SET AUTO_SUSPEND=900;
 -- It is better to run multiple data altering statements in a single go (in a single transaction), instead of running them one by one, to reduce storage costs (failsafe)
 -- and use result set caching to its fullest potential (if we run 5 update statements in a single day, updating a single row each time, the previous result set
 -- will always be discarded, even if only a single record was altered/added/removed)
+
+
+
+-- MODULE 3 --
