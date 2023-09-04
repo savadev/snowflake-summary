@@ -198,6 +198,10 @@ SET AUTO_SUSPEND=900;
 
 -- 3) You can override the automatic clustering done by snowflake, by providing custom cluster keys.
 
+-- 4) Clustering enforces a reordering of the rows in your table. This reordering will ALWAYS happen AFTER (gradually) each time data is loaded/updated in your table. 
+-- This can be bad for costs in large tables, if you frequently update, as there will be a considerable amount of compute power cost each time there is a need for a reorder,
+-- each time there is an update.
+
 
 
 
@@ -237,12 +241,47 @@ SHOW TABLES LIKE '<table_name>';
 -- Shows if table is clustered (has cluster keys) or not ('000005 (XX000): Invalid clustering keys or table CUSTOMER_NOCLUSTER is not clustered')
 SELECT SYSTEM$CLUSTERING_INFORMATION('<database.schema.table>');
 
--- Shows clustering information of given column in a table.
-SELECT SYSTEM$CLUSTERING_INFORMATION('CUSTOMER_CLUSTERED','(C_MKTSEGMENT)');
-
+-- Shows clustering keys of your table (if they exist/are applied)
 SELECT SYSTEM$CLUSTERING_INFORMATION('CUSTOMER_CLUSTERED');
 
--- It is also possible to cluster by PART of a column's value, such as a part of a date (ex: cluster by only the years, and not dates)
+
+-- {   "cluster_by_keys" : "LINEAR(C_MKTSEGMENT)",  
+--  "total_partition_count" : 421,   
+--  "total_constant_partition_count" : 0,   
+--  "average_overlaps" : 420.0,  
+--   "average_depth" : 421.0,  
+--    "partition_depth_histogram" : 
+--    {     "00000" : 0,     "00001" : 0,     "00002" : 0,     "00003" : 0,     "00004" : 0,     "00005" : 0,     "00006" : 0,     "00007" : 0,     "00008" : 0,     "00009" : 0,     "00010" : 0,     "00011" : 0,     "00012" : 0,     "00013" : 0,     "00014" : 0,     "00015" : 0,     "00016" : 0,     "00512" : 421   },   "clustering_errors" : [ ] }
+
+
+-- Has two main uses: 1) Shows clustering information of given column in your table. 2) If a clustering key has not been applied on that column, Snowflake runs a simulation
+-- of how well that column would perform, if used as a clustering key, without really applying it (but we should be careful, as this simulation is not always accurate).
+SELECT SYSTEM$CLUSTERING_INFORMATION('CUSTOMER_CLUSTERED','(C_MKTSEGMENT)');
+
+-- Example of a test that shows a bad clustering key idea:
+
+SELECT SYSTEM$CLUSTERING_INFORMATION('CUSTOMER_NO_CLUSTER', '(C_MKTSEGMENT, C_CUSTKEY)');
+
+-- {   "cluster_by_keys" : "LINEAR(C_MKTSEGMENT, C_CUSTKEY)", 
+--   "notes" : "Clustering key columns contain high cardinality
+--    key C_CUSTKEY which might result in expensive re-clustering. 
+--    Please refer to 
+-- https://docs.snowflake.net/manuals/user-guide/tables-clustering-keys.html 
+-- for more information.",   
+-- "total_partition_count" : 420,   
+-- "total_constant_partition_count" : 0,  
+--  "average_overlaps" : 419.0,  
+--   "average_depth" : 420.0,   
+--   "partition_depth_histogram" : {    
+--      "00000" : 0,
+--      ...    
+--      "00512" : 420   },   "clustering_errors" : [ ] }
+
+
+-- It is also possible to check/test Clusters applied on multiple columns at once.
+SELECT SYSTEM$CLUSTERING_INFORMATION('CUSTOMER_NO_CLUSTER', '(C_MKTSEGMENT, C_CUSTKEY)');
+
+-- It is also possible to cluster by PART of a column's value, such as a part of a date (ex: cluster by only the years, and not dates).
 ALTER TABLE SAMPLE_DATABASE.PUBLIC.CUSTOMER_NOCLUSTER CLUSTER BY (C_MKTSEGMENT, substring(TO_DATE(date), 2)); -- we get "19" and "20", because of the "19XX" and "20XX" format.
 
 
@@ -262,5 +301,13 @@ ALTER TABLE SAMPLE_DATABASE.PUBLIC.CUSTOMER_NOCLUSTER CLUSTER BY (C_MKTSEGMENT, 
 
 -- 6) The table must be queried (SELECT) frequently, but UPDATED infrequently.
 
+-- 7) Clustering keys should be columns without high cardinality (avoid using IDs as clustering keys)
+
 -- Before clustering, Snowflake recomemends that we test a representative set of queries on the table, 
--- to have more info about the performance of the query, what can be done, etc.
+-- to have more info about the performance of the query, what can be done, etc. Also use the "cluster test", seen above.
+
+
+
+
+
+-- MODULE 4 -- 
