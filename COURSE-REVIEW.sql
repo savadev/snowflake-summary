@@ -900,7 +900,7 @@ ORDER BY eligible_query_acceleration_time DESC;
 -- How to enable (SQL code):
 
 
-
+ALTER TABLE <table_name> ADD SEARCH OPTIMIZATION ON <col_name>;
 
 
 
@@ -960,5 +960,5 @@ ALTER TABLE DEMO_DB.PUBLIC.LINEITEM_SOS ADD SEARCH OPTIMIZATION ON EQUALITY(L_OR
 SHOW TABLES;
 
 -- Shows the difference between search optimization enabled and disabled:
-SELECT * FROM DEMO_DB.PUBLIC.LINEITEM_SOS WHERE L_ORDERKEY = '4509487233';  -- Takes 6 seconds, roughly.
-select * from DEMO_DB.PUBLIC.LINEITEM_NO_SOS where L_orderkey = '4509487233'; -- Takes 43 seconds, roughly
+SELECT * FROM DEMO_DB.PUBLIC.LINEITEM_SOS WHERE L_ORDERKEY = '4509487233';  -- Takes 6 seconds, roughly. - 3 partitions scanned.
+select * from DEMO_DB.PUBLIC.LINEITEM_NO_SOS where L_orderkey = '4509487233'; -- Takes 43 seconds, roughly. - 9 thousand partitions scanned.
