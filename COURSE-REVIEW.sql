@@ -897,7 +897,46 @@ ORDER BY eligible_query_acceleration_time DESC;
 
 
 
--- How to enable SOS:
+-- How to enable (SQL code):
 
+
+
+
+
+
+
+
+"Essentially, this service's objective is to find needles (few records) in haystacks (huge tables)".
+
+
+"The search optimization service can significantly improve the 
+performance of certain types of lookup and analytical queries that 
+use an extensive set of predicates for filtering."
+
+"Selective point lookup queries on tables.
+A point lookup query returns only one 
+or  a small number of distinct rows."
+
+"Once you identiy the queries that can benefit from the 
+search optimization service, you can configure 
+search optimization for the columns and tables 
+used in those queries."
+
+
+-- Used in scenarios in which:
+
+-- 1) You have a huge table, and you frequently return only a few records from it. (50 records out of 20 million, for example)
+
+-- 2) You are frequently running intensive
+-- analytical queries, with a lot of WHERE conditions in 
+-- a single query.
+
+-- 3) Too slow individual queries.
+
+-- 4) You don't want to spend costs in a bigger warehouse.
+
+-- 5) Your queries are not eligible for QAS (Query Acceleration Service)
+
+-- 6) Clustering is not viable, and loading data while ordering (ORDER BY) it is not being enough.
 
 
