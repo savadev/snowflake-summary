@@ -396,7 +396,6 @@ SELECT SYSTEM$CLUSTERING_INFORMATION('CUSTOMER_ORDER_BY_EXAMPLE', '(C_MKTSEGMENT
 
 
 
-
 -- 1) They are essentially EC2 machines, running in the background.
 
 
@@ -421,3 +420,31 @@ SELECT SYSTEM$CLUSTERING_INFORMATION('CUSTOMER_ORDER_BY_EXAMPLE', '(C_MKTSEGMENT
 
 -- 5.2) This mode can be viable, but you must have a lot of thought regarding the compute cost per hour and your bill.
 
+
+
+
+-- Scaling Policy:
+
+
+
+
+-- 1) "How many queries should be queued up, by Snowflake, to have an actual additional cluster started up?"
+
+-- 2) "If no workload is present in it, when should a warehouse be suspended?"
+
+-- 3) The scaling policy options, "Economy" and "Standard", are used for different use-cases/scenarios.
+
+-- 3.1) Standard - The moment a query gets into a queue (a queue is formed), snowflake immediately creates copies of your cluster, to resolve this query.
+
+-- 3.2) Economy -  Snowflake spins up additional clusters only if it estimates there's enough load to keep the clusters busy for at least 6 minutes.
+
+-- 4) Snowflake checks, minute-by-minute, if the load in each warehouse's least loaded cluster
+-- could be redistributed to other clusters, without spinning up the cluster again.
+-- In each plan, the trigger to suspend a cluster is: 
+
+-- 4.1) Standard - after 2-3 consecutive successful checks .
+
+-- 4.2) Economy - after 5-6 consecutive successful checks. (time until clusters shuts down is longer, to keep cluster running and preserve credits)
+
+-- 5) Essentially, "Economy" saves cost in the case of short spikes, but the user
+-- may experience short to moderate queues, and delayed query execution.
