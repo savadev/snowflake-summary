@@ -188,6 +188,8 @@ SET AUTO_SUSPEND=900;
 -- MODULE 3 --
 
 
+-- Clustering -- 
+
 
 -- Clustering Tips:
 
@@ -259,7 +261,6 @@ SELECT SYSTEM$CLUSTERING_INFORMATION('CUSTOMER_CLUSTERED');
 SELECT SYSTEM$CLUSTERING_INFORMATION('CUSTOMER_CLUSTERED','(C_MKTSEGMENT)');
 
 -- Example of a test that shows a bad clustering key idea:
-
 SELECT SYSTEM$CLUSTERING_INFORMATION('CUSTOMER_NO_CLUSTER', '(C_MKTSEGMENT, C_CUSTKEY)');
 
 -- {   "cluster_by_keys" : "LINEAR(C_MKTSEGMENT, C_CUSTKEY)", 
@@ -288,6 +289,7 @@ ALTER TABLE SAMPLE_DATABASE.PUBLIC.CUSTOMER_NOCLUSTER CLUSTER BY (C_MKTSEGMENT, 
 
 -- Clustering Precautions (all requirements must be met, only then can we consider clustering):
 
+
 -- 1) Clustering should not be applied to every table in a system.
 
 -- 2) Table must be very large (multiple terabytes, large number of micro-partitions).
@@ -309,5 +311,82 @@ ALTER TABLE SAMPLE_DATABASE.PUBLIC.CUSTOMER_NOCLUSTER CLUSTER BY (C_MKTSEGMENT, 
 
 
 
+-- In what columns should we apply clustering?
+
+-- 1) Columns frequently used with the "WHERE" clause in our queries.
+
+-- 2) Columns frequently used with JOIN clause (as relational columns) and that do not have a high cardinality (ex: "Department_Id", and we have only 10 departments)
+
+-- 3) The order specified in our clustering is also important, and is considered by Snowflake. 
+-- Our columns, in the cluster key, should follow the order:
+-- "Less cardinality" (unique values) -> "More cardinality" (unique values). 
+-- It should be ordered like this because it is easier to group data by lesser amounts of distinct values.
+
+
+
+-- How do we obtain the cardinality of a given column?
+
+
+-- Run these commands:
+
+
+-- Get total amount of records in a table (X)
+SELECT COUNT(*) FROM <table_name>;
+
+-- Get amount of distinct values for a column, in a table (Y).
+SELECT COUNT(DISTINCT <col_name>) FROM <table_name>;
+
+-- Divide Y by X:
+SELECT Y/X; ---- example of output: 0.15555555555 (high cardinality, 15%).
+
+
+
+
+
+
+
+
+
+
+
 
 -- MODULE 4 -- 
+
+
+-- Improve performance without clustering --
+
+
+
+-- The "auto-arrange" enforced, "under the hood", by the clustering feature of Snowflake
+-- can be done by us, manually; We only need to order our rows by the would-be clustering keys, while our data is being loaded into a table/we are creating a table:
+CREATE OR REPLACE TRANSIENT TABLE DEMO_DB.PUBLIC.CUSTOMER_ORDER_BY_EXAMPLE
+AS 
+SELECT * fROM SNOWFLAKE_SAMPLE_DATA.TPCH_SF1000.CUSTOMER
+ORDER BY C_MKTSEGMENT;
+
+-- Checking Clustering Information (we will already have a high constant partition count, for that column. Data will already be arranged, without clustering)
+SELECT SYSTEM$CLUSTERING_INFORMATION('CUSTOMER_ORDER_BY_EXAMPLE', '(C_MKTSEGMENT)');
+
+
+
+-- Even if we DO apply custom clustering in a table, using Column X as a Cluster Key, we should, in the future, always use ORDER BY with that column
+--  when loading our data into that table, as that will help save costs with compute 
+-- (Snowflake won't have to rearrange the micropartitions, in the backend, automatically).
+
+
+
+-- Still, this strategy is not the same as Clustering (won't be as beneficial).
+-- Micro partitions in back-end will remain well grouped, yes, but there won't 
+-- be a re-grouping of ALL micro-partitions based on every instance of recently loaded data. With this strategy,
+-- the old micro-partitions won't be regrouped considering this new data. However, even so, the new data that is loaded into the 
+-- table will have a better grouping, by itself, and that will improve your query times.
+
+
+
+
+
+
+-- MODULE 5 -- 
+
+
+-- Virtual Warehouses -- 
