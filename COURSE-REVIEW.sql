@@ -785,7 +785,7 @@ and is directly related to the size of your warehouse."
 
 
 
--- Query Acceleration Service
+-- Query Acceleration Service (QAS)
 
 
 
@@ -878,3 +878,26 @@ ORDER BY eligible_query_acceleration_time DESC;
 
 -- 2) When using QAS, queries will no longer be able to benefit from Warehouse Caching (because the machines used by/with QAS 
 -- will be borrowed machines, different from the machines of your warehouse's cluster)
+
+
+
+
+
+
+
+
+-- MODULE 9 -- 
+
+
+
+
+
+-- Search Optimization Service (SOS) --
+
+
+
+
+-- How to enable SOS:
+
+
+
