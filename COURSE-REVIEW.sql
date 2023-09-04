@@ -34,7 +34,6 @@ ALTER WAREHOUSE audiencelab_main RESUME;
 ALTER WAREHOUSE audiencelab_main SUSPEND;
 
 -- Statements to check what was executed in a warehouse (metadata, ACCOUNTADMIN needed):
-
 SELECT * FROM TABLE(INFORMATION_SCHEMA.WAREHOUSE_LOAD_HISTORY(DATE_RANGE_START=>DATEADD('HOUR',-1,CURRENT_TIMESTAMP())));
 
 SELECT * FROM TABLE(INFORMATION_SCHEMA.WAREHOUSE_METERING_HISTORY(DATEADD('SEC',-500,CURRENT_DATE()),CURRENT_DATE()));
@@ -47,6 +46,9 @@ SELECT * FROM TABLE(INFORMATION_SCHEMA.WAREHOUSE_METERING_HISTORY(CURRENT_DATE()
 
 
 -- Creating Databases, Schemas and Tables - Permanent, Transient and Temporary.
+
+-- Shows the DATA DEFINITION LANGUAGE COMMAND (sql text) that was used to create this specific table
+SELECT get_ddl('TABLE','<database.schema.table>');
 
 -- Databases
 CREATE OR REPLACE DATABASE DEMO_DB; -- PERMANENT (fail-safe, retention period of 0-90 days. 0 disables it)
@@ -63,11 +65,26 @@ CREATE OR REPLACE TRANSIENT SCHEMA DEMO_DB.SOME_SCHEMA; -- TRANSIENT
 CREATE OR REPLACE TEMPORARY SCHEMA DEMO_DB.SOME_SCHEMA; -- TEMPORARY 
 
 -- Tables
-CREATE OR REPLACE TABLE DEMO_DB.PUBLIC.SOME_TABLE; -- PERMANENT
+CREATE OR REPLACE TABLE DEMO_DB.PUBLIC.SOME_TABLE ( -- PERMANENT
+    FIELD_A STRING NOT NULL, -- "not null" is the only constraint that is enforced, in Snowflake. All other constraints (even primary/foreign keys) are not enforced, and only kept as metadata
+    FIELD_B NUMBER,
+    FIELD_C DATE,
+    FIELD_D VARIANT
+); 
 
-CREATE OR REPLACE TRANSIENT TABLE DEMO_DB.PUBLIC.SOME_TABLE;  -- TRANSIENT 
+CREATE OR REPLACE TRANSIENT TABLE DEMO_DB.PUBLIC.SOME_TABLE ( -- TRANSIENT 
+    FIELD_A STRING NOT NULL, -- "not null" is the only constraint that is enforced, in Snowflake. All other constraints (even primary/foreign keys) are not enforced, and only kept as metadata
+    FIELD_B NUMBER,
+    FIELD_C DATE,
+    FIELD_D VARIANT
+);  
 
-CREATE OR REPLACE TEMPORARY TABLE DEMO_DB.PUBLIC.SOME_TABLE; -- TEMPORARY
+CREATE OR REPLACE TEMPORARY TABLE DEMO_DB.PUBLIC.SOME_TABLE ( -- TEMPORARY
+    FIELD_A STRING NOT NULL, -- "not null" is the only constraint that is enforced, in Snowflake. All other constraints (even primary/foreign keys) are not enforced, and only kept as metadata
+    FIELD_B NUMBER,
+    FIELD_C DATE,
+    FIELD_D VARIANT
+) 
 
 
 
@@ -143,13 +160,13 @@ SELECT * FROM SUPPLIER LIMIT 100;
 
 -- The default auto-suspend time is 600 seconds (10 minutes of inactivity suspends the warehouse).
 -- Setting auto-suspend to 0 is not recommended (unless we have a workload of continuous usage) - Costs get huge, specially if we have larger warehouses.
-ALTER WAREHOUSE
+ALTER WAREHOUSE <warehouse_name>
 SET AUTO_SUSPEND=600;
 
 
 
 -- During development activities, we should raise the auto-suspend period to at least 15 minutes (if warehouse is being heavily used), to maximize usage of warehouse caching.
-ALTER WAREHOUSE
+ALTER WAREHOUSE <warehouse_name>
 SET AUTO_SUSPEND=900;
 
 
@@ -180,3 +197,70 @@ SET AUTO_SUSPEND=900;
 -- 2) Clustering is done automatically by Snowflake, using the order in which the data was inserted as basis.
 
 -- 3) You can override the automatic clustering done by snowflake, by providing custom cluster keys.
+
+
+
+
+
+-- Basic Syntax - Custom Clustering:
+
+
+
+-- Create Table with Clustering:
+CREATE TABLE EMPLOYEE (TYPE, NAME, COUNTRY, DATE) CLUSTER BY (DATE);
+
+
+-- Alter already existing table, apply Clustering (will force the reordering of rows, in the table
+-- Always be wary of the size of your table, as the compute cost for this reordering can be high):
+ALTER TABLE EMPLOYEE CLUSTER BY (DATE);
+
+-- This command is deprecated, as reclustering, nowadays, is done automatically by Snowflake itself.
+ALTER TABLE TEST RECLUSTER;
+
+
+
+
+
+-- In real life scenarios, your tables will have thousands of micro partitions.
+-- These partitions will overlap with one another.
+-- If there is more overlap, Snowflake has to scan through every one of these partitions (bad thing).
+-- The degree of overlap, in Snowflake, is measured by the term "micro-partition depth"...
+-- Our objective, to have effective clustering, is to have a high amount of "Constant Micro Partitions" (these are the partitions
+-- that have already been clustered, whose micro-partition depth is equal to 1. 1 is the limit, we can't cluster 
+-- more than that ).
+
+
+-- How to check cluster status of a table:
+-- "automatic_clustering" --> its value only will be "ON" if we apply custom clustering, by some column, in our table.
+SHOW TABLES LIKE '<table_name>';
+
+-- Shows if table is clustered (has cluster keys) or not ('000005 (XX000): Invalid clustering keys or table CUSTOMER_NOCLUSTER is not clustered')
+SELECT SYSTEM$CLUSTERING_INFORMATION('<database.schema.table>');
+
+-- Shows clustering information of given column in a table.
+SELECT SYSTEM$CLUSTERING_INFORMATION('CUSTOMER_CLUSTERED','(C_MKTSEGMENT)');
+
+SELECT SYSTEM$CLUSTERING_INFORMATION('CUSTOMER_CLUSTERED');
+
+-- It is also possible to cluster by PART of a column's value, such as a part of a date (ex: cluster by only the years, and not dates)
+ALTER TABLE SAMPLE_DATABASE.PUBLIC.CUSTOMER_NOCLUSTER CLUSTER BY (C_MKTSEGMENT, substring(TO_DATE(date), 2)); -- we get "19" and "20", because of the "19XX" and "20XX" format.
+
+
+
+-- Clustering Precautions (all requirements must be met, only then can we consider clustering):
+
+-- 1) Clustering should not be applied to every table in a system.
+
+-- 2) Table must be very large (multiple terabytes, large number of micro-partitions).
+
+-- 3) The queries must be mostly SELECTIVE, and must frequently only read a small
+-- percentage of rows (which means a small percentage of micro-partitions).
+
+-- 4) Queries run on the table should frequently SORT the data (ORDER BY clauses).
+
+-- 5) Most queries SELECT and SORT BY on the same few columns.
+
+-- 6) The table must be queried (SELECT) frequently, but UPDATED infrequently.
+
+-- Before clustering, Snowflake recomemends that we test a representative set of queries on the table, 
+-- to have more info about the performance of the query, what can be done, etc.
