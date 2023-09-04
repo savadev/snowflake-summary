@@ -27,6 +27,8 @@ initially_suspended=true;
 -- XXXLARGE , X3LARGE , '3X-LARGE'  64
 -- X4LARGE , '4X-LARGE'     128
 
+-- Snowflake Credit Cost varies by Region and Provider (AWS, Azure, GCP)
+
 -- Force resume a warehouse. "OPERATE" privileges are needed to run this query.
 ALTER WAREHOUSE audiencelab_main RESUME;
 
@@ -390,3 +392,32 @@ SELECT SYSTEM$CLUSTERING_INFORMATION('CUSTOMER_ORDER_BY_EXAMPLE', '(C_MKTSEGMENT
 
 
 -- Virtual Warehouses -- 
+
+
+
+
+
+-- 1) They are essentially EC2 machines, running in the background.
+
+
+-- 2) We can assign Warehouses to different users.
+
+
+-- 3) If individual queries are too slow (complex individual queries), one strategy is to increase the size of our Warehouse.
+
+
+-- 4) Auto-Scale Mode -- always recommended.
+
+-- 4.1) To use it, we must specify a "minimum cluster count" (default: 1) and "maximum cluster count"...
+
+-- 4.2) We must also be careful with the Auto-Scaling, as it can increase our costs considerably.
+
+
+-- 5) Maximized Mode -- We enable this mode when we define the same values for "minimum warehouse count" and "maximum warehouse count". In this mode,
+-- when the warehouse is started, Snowflake forces the initialization of all clusters, so that maximum resources are always available 
+-- while the warehouse is running.
+
+-- 5.1) This option should be used if you always have queries running in parallel, without varying traffic. 
+
+-- 5.2) This mode can be viable, but you must have a lot of thought regarding the compute cost per hour and your bill.
+
