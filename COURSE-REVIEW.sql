@@ -642,3 +642,88 @@ SELECT * FROM SNOWFLAKE.ACCOUNT_USAGE.QUERY_HISTORY;
 -- We can calculate the idle time, and check if our warehouses are being used appropriately.
 SELECT * FROM SNOWFLAKE.ACCOUNT_USAGE.WAREHOUSE_EVENTS_HISTORY
 ORDER BY TIMESTAMP ASC;
+
+
+
+
+-- For dashboard panel creation codes (in your worksheets), check Module 10 - Snowsight and Warehouse Dashboard.
+
+
+
+-- In our worksheets, we can use "DYNAMIC FILTERS", accessed by the syntax ":filter_name". We can also create Custom filters, using the GUI.
+
+
+-- To create and use a Dynamic Filter in the code of one of our worksheets, we must:
+
+-- 1) Click in the small lines icon, in the upper-left corner of the worksheet editor page.
+
+-- 2) Type the filter name and identifier ("example_filter" and ":example_filter", or "my_warehouse" and ":my_warehouse")
+
+-- 3) Choose the warehouse that will run this filter.
+
+-- 4) Click "Write query" 
+
+-- 5) In this modal, you need to write a SELECT query that will retrieve the values that will be selectable, in the future,
+-- with this filter, in the upper-left corner.
+
+-- 5.1) Example: we want to have an option to select a warehouse, using our custom filter. For that, we need all the different warehouses of 
+-- our system in a result set, so we write this: "SELECT DISTINCT warehouse_name FROM snowflake.account_usage.warehouse_metering_history;"
+
+-- 5.2) With a list of possible values provided, by the running of this query, we have a checkbox that lets us choose between single 
+-- values and "multiple values can be selected"
+
+-- 6) Finally, with this dynamic filter created, we can apply it on any of our worksheets, if we use the syntax ":filter_name" (ex: "my_warehouse")
+
+-- 6.1) Example of syntax usage:
+
+SELECT SUM(COST) COST
+FROM OVERVIEW
+WHERE CRITERIA='SNOWFLAKE_WAREHOUSE_COST'
+AND WAREHOUSE_NAME=:my_warehouse; -- custom filter (created by us) example.
+  -- AND WAREHOUSE_NAME='COMPUTE_WH'; -- Example of possible value, inserted in the dynamic filter placeholder, by the Snowflake GUI.
+
+-- 7) This feature of Dynamic Filters can also be used in our dashboards, to "filter by warehouse", or "filter by date", and other custom filters.
+
+
+
+
+
+-- To create dashboards, we need to create them first, and then add our worksheets, as panels, to them.
+
+
+-- Some quirks/tips:
+
+
+-- 1) Once a worksheet is converted into a panel, it can't be reverted into a worksheet, so save your queries, beforehand, in other places.
+
+-- 2) You should have a single query/statement per worksheet.
+
+-- 3) The worksheets' names are always used as panel names, so name your worksheets accordingly.
+
+-- 4) Each time we open our dashboard, the queries of the panels will be reexecuted (and will query the metadata tables).
+
+
+
+
+
+
+-- How to read and analyze some of the dashboards' data:
+
+
+
+-- 1) "GB Written" --> if this number is greater than "GB written to result", this means our warehouse is being 
+-- used mainly to load data into tables.
+
+
+-- 2) "GB Written to result" --> if this number is greater than "GB Written", this means our warehouse is 
+-- being used mainly to retrieve result sets with SELECT (select queries, Tableau, Snowflake web console).
+
+-- 3) "GB Scanned" --> This number is usually accompanied by "GB Written to result" (SELECT queries). If this number 
+-- is high and we have no "GB Written to result" (0 as a value), this means that some query was aborted whilst running (
+-- bytes were scanned, but no result was retrieved; even if no result was retrieved, we'll have been charged by Snowflake all the same, for
+-- the compute power).
+
+-- 4) Warehouse classification:
+-- 3.1) Very Active === Warehouses that are idle 25% of the time or less.
+-- 3.2) Active === Warehouses that are between 25% and 75% of the time idle.
+-- 3.3) Dormant === Warehouses that are 75% or more of the time idle.
