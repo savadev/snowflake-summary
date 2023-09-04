@@ -925,11 +925,12 @@ used in those queries."
 
 -- Used in scenarios in which:
 
--- 1) You have a huge table, and you frequently return only a few records from it. (50 records out of 20 million, for example)
+-- 1) You have a huge table (50gb, 150gb, 250gb+ ), and you frequently return only a few records from it. (50 records out of 20 million, for example)
 
--- 2) You are frequently running intensive
--- analytical queries, with a lot of WHERE conditions in 
--- a single query.
+-- 1.1) "Few records" --> try to retrieve at most 1k records; the SOS is not recommended for the retrieval of result sets greater than that count.
+
+-- 2) You are frequently running intensive analytical queries, with a lot of WHERE conditions in 
+-- a single query (because the more WHERE conditions you have, the less records you retrieve).
 
 -- 3) Too slow individual queries.
 
@@ -956,7 +957,7 @@ CREATE TABLE DEMO_DB.PUBLIC.LINEITEM_NO_SOS CLONE DEMO_DB.PUBLIC.LINEITEM_SOS;
 ALTER TABLE DEMO_DB.PUBLIC.LINEITEM_SOS ADD SEARCH OPTIMIZATION ON EQUALITY(L_COMMENT);
 ALTER TABLE DEMO_DB.PUBLIC.LINEITEM_SOS ADD SEARCH OPTIMIZATION ON EQUALITY(L_ORDERKEY);
 
--- Column "search_optimization" (ON/OFF). Also ""
+-- Column "search_optimization" (ON/OFF). Also "search_optimization_bytes", which shows how much storage bytes (additional storage) is being spent with SOS.
 SHOW TABLES;
 
 -- Shows the difference between search optimization enabled and disabled:
@@ -965,4 +966,45 @@ select * from DEMO_DB.PUBLIC.LINEITEM_NO_SOS where L_orderkey = '4509487233'; --
 
 
 
--- Essentially, Snowflake creates additional "lookup tables" (additional storage costs) to improve your query speed.
+-- Essentially, Snowflake creates additional "lookup tables" (additional storage costs) to help improve your query speed.
+-- These additional "lookup tables" function similarly to regular index tables in conventional database systems (but not identically, as these lookup 
+-- tables do not have UNIQUEness and NOT NULL constraints, as index tables do).
+
+-- These lookup tables are materialized views, created using the selected columns as a basis, and have a storage cost associated to them.
+
+
+
+
+
+
+
+
+-- RECAP of query optimization options, so far: --
+
+-- 1) Clustering - The grouping of micropartitions according to the most used filters
+
+-- 2) Query Acceleration Service (QAS) - Used to reduce query times on huge tables, huge amounts of data retrieved. "Borrows" additional machines to read data faster.
+
+-- 3) Search Optimization Service (SOS) - The creation of an index-like additional table (materialized view), 
+-- which helps lookup few rows (many WHERE filters) in huge tables.
+
+
+
+
+
+
+
+
+
+
+
+
+-- MODULE 10 -- 
+
+
+
+-- Load data - Intro 
+
+
+
+
