@@ -102,7 +102,7 @@ CREATE OR REPLACE TEMPORARY TABLE DEMO_DB.PUBLIC.SOME_TABLE ( -- TEMPORARY
 
 
 
--- Selecting data from tables. While in development, always use LIMIT clause, to reduce compute usage
+-- Selecting data from tables. While in development, always use LIMIT clause, to reduce compute usage. Your result set must not exceed 10.000 rows, preferably.
 SELECT * FROM SUPPLIER LIMIT 100;
 
 
@@ -530,12 +530,15 @@ SELECT SYSTEM$CLUSTERING_INFORMATION('CUSTOMER_ORDER_BY_EXAMPLE', '(C_MKTSEGMENT
 
 -- 2) If we are developing, we should use the same virtual warehouse, to save costs (usage of cached result sets).
 
--- 3) We should apply ORDER BY on our data, by the columns most used with WHERES and JOINS, before loading it 
+-- 3) If we are running extremely large queries, a good idea is to break up the query in smaller logical units,
+-- always trying to store the result of subqueries in transient/temporary tables, to save processing/compute costs.
+
+-- 4) We should apply ORDER BY on our data, by the columns most used with WHERES and JOINS, before loading it 
 -- into our tables. If we do so, even if we eventually apply clustering, in the future, the costs to reorder the 
 -- table considering the clustering keys won't be as high, as the micropartitions
 -- in the table will already be ordered, to some extent.
 
--- 4) If possible, when needed (too much queries at the same time, but not necessarily 
+-- 5) If possible, when needed (too much queries at the same time, but not necessarily 
 -- complex queries), always try to increase the max cluster count (multi-cluster warehouse)
 -- instead of increasing the warehouse size (ex: from LARGE to XLARGE), as the costs will be much cheaper. This is 
 -- also better than creating multiple warehouses (ex: multiple large warehouses) to do the same type of job/workload.
@@ -733,9 +736,12 @@ AND WAREHOUSE_NAME=:my_warehouse; -- custom filter (created by us) example.
     -- 5.1) "GB Written" too high - This means that a lot of data is being inserted/updated on Snowflake. You should think about costs with storage,
     -- both active bytes, time travel bytes and failsafe bytes, which can generate a very high combined cost. You must ensure that this is really business 
     -- critical data, and not junk data.
+
     -- 5.2) "GB Written to result" too high - This means that your queries are probably written incorrectly, and are retrieving/writing data to the Snowflake 
     -- Web Console (which is a very bad thing, because the console/GUI can only show up to 1.5 million records per query; the rest of the records is not 
-    -- shown/outputted)
+    -- shown/outputted). Consider running aggregations (like SUM() or COUNT()) to produce your results, as that won't envolve the write of unecessary 
+    -- data in the Snowflake Web Console. Your result set must not exceed 10.000 rows, preferably.
+
     -- 5.3) "GB Scanned" too high - This may indicate that you wrote inefficient queries, that they are pulling almost all of the records in the table,
     -- or scanning almost all partitions.
 
