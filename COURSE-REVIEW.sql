@@ -1008,3 +1008,14 @@ select * from DEMO_DB.PUBLIC.LINEITEM_NO_SOS where L_orderkey = '4509487233'; --
 
 
 
+-- To work with Snowflake in our terminal, we need:
+
+-- 1) Snow CLI 
+
+-- 2) AWS CLI 
+
+
+
+
+-- To connect to our snowflake account/app, we must run, in the terminal:
+snowsql -a <account-identifier> -u <username_in_the_account>  -- "account-identifier" is something like <string>.us-east-2.aws
