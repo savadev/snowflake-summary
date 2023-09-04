@@ -448,3 +448,113 @@ SELECT SYSTEM$CLUSTERING_INFORMATION('CUSTOMER_ORDER_BY_EXAMPLE', '(C_MKTSEGMENT
 
 -- 5) Essentially, "Economy" saves cost in the case of short spikes, but the user
 -- may experience short to moderate queues, and delayed query execution.
+
+
+
+
+-- MODULE 6 --
+
+
+
+
+-- Performance Tuning --
+
+
+
+
+
+
+
+-- The objective is to retrieve result sets more quickly.
+
+-- In traditional databases (mySQL, PostgreSQL), we:
+
+
+-- 1) Add indexes and primary keys.
+
+-- 2) Create table partitions 
+
+-- 3) Analyze query execution plan 
+
+-- 4) Remove unecessary full table scans
+
+-- 5) Verify optimal index usage
+
+-- 6) Use hints to Tune Oracle SQL
+
+-- 7) Self-order the table joins.
+
+
+
+-- However, in Snowflake, a big part of optimization is done automatically.
+
+
+
+-- What we must do is use Snowflake smartly.
+
+-- Everything in Snowflake generates cost; me must not generate costs unecessarily.
+
+
+
+-- In Snowflake, there is:
+
+
+-- 1) No indexes.
+
+-- 2) No primary/foreign key constraints.
+
+-- 3) No constraints, besides "NOT NULL".
+
+-- 4) No need for transaction management, as there is no Buffer Pool.
+
+-- 5) No "out of memory" exceptions.
+
+
+
+
+-- Ways to improve performance, in general:
+
+
+-- 1) The less columns selected, the better (avoid the "*").
+
+-- 2) If we are developing, we should use the same virtual warehouse, to save costs (usage of cached result sets).
+
+-- 3) We should apply ORDER BY on our data, by the columns most used with WHERES and JOINS, before loading it 
+-- into our tables. If we do so, even if we eventually apply clustering, in the future, the costs to reorder the 
+-- table considering the clustering keys won't be as high, as the micropartitions
+-- in the table will already be ordered, to some extent.
+
+-- 4) If possible, when needed (too much queries at the same time, but not necessarily 
+-- complex queries), always try to increase the max cluster count (multi-cluster warehouse)
+-- instead of increasing the warehouse size (ex: from LARGE to XLARGE), as the costs will be much cheaper. This is 
+-- also better than creating multiple warehouses (ex: multiple large warehouses) to do the same type of job/workload.
+
+
+
+
+
+-- Snowflake treats transactions differently, but still satisfies the 4 A.C.I.D principles.
+
+
+
+
+-- In Snowflake, update operations are a combination between DELETE and INSERT operations.
+
+
+
+
+
+
+-- About update statements, ALWAYS BE CAREFUL. Two rules:
+
+
+
+-- 1) Before running an update statement, check how many records are in your table, and how 
+-- many of them would be impacted by the change. If 80% of the records would be impacted by the change,
+-- you could/should consider recreating the entire table, with the correct data (because the total cost will probably 
+-- be less than the UPDATE of all those records); alternatively, you could first DELETE all rows (truncate), to then 
+-- INSERT the records with the correct/updated data (this also will be cheaper).
+
+-- 2) When you are trying to DELETE or UPDATE rows in your tables, always try to use numeric columns as identifiers/
+-- WHERE filters, because Snowflake's scanning mechanism is better suited/optimized for numbers (strings are a bad choice, 
+-- for these operations).
