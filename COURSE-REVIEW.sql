@@ -961,4 +961,8 @@ SHOW TABLES;
 
 -- Shows the difference between search optimization enabled and disabled:
 SELECT * FROM DEMO_DB.PUBLIC.LINEITEM_SOS WHERE L_ORDERKEY = '4509487233';  -- Takes 6 seconds, roughly. - 3 partitions scanned.
-select * from DEMO_DB.PUBLIC.LINEITEM_NO_SOS where L_orderkey = '4509487233'; -- Takes 43 seconds, roughly. - 9 thousand partitions scanned.
+select * from DEMO_DB.PUBLIC.LINEITEM_NO_SOS where L_orderkey = '4509487233'; -- Takes 43 seconds, roughly. - 9 thousand partitions scanned
+
+
+
+-- Essentially, Snowflake creates additional "lookup tables" (additional storage costs) to improve your query speed.
