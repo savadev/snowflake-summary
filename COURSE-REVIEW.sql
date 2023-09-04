@@ -776,3 +776,105 @@ and is directly related to the size of your warehouse."
 
 -- 7) "GB SPILLED TO REMOTE STORAGE" too high, in a query - Same thing as Point 6, your query is probably too demanding. The assigned compute 
 -- may not be enough.
+
+
+
+
+-- MODULE 8 --
+
+
+
+
+-- Query Acceleration Service
+
+
+
+
+
+
+-- How to enable (SQL code):
+
+CREATE WAREHOUSE <warehouse_name>
+ENABLE_QUERY_ACCELERATION = TRUE
+QUERY_ACCELERATION_MAX_SCALE_FACTOR = <num>;
+
+ALTER WAREHOUSE <warehouse_name>
+SET ENABLE_QUERY_ACCELERATION = TRUE
+QUERY_ACCELERATION_MAX_SCALE_FACTOR = <num>; -- multiplier
+
+
+"It can accelerate parts of the query workload in a warehouse. When it is enabled for a warehouse,
+it can improve overall warehouse performance by reducing the impact of outlier queries, which are queries 
+that use more resources than the typical query. The query acceleration service does this by offloading 
+portions of the query processing work to shared compute resources that are provided by the service.
+It can handle workloads more efficiently by performing more work in parallel and reducing the Walltime
+spent in scanning and filtering".
+
+
+
+
+-- The usage of QAS can be cheaper than increasing the size of your warehouse, but it can still be expensive (or even more expensive,
+-- if used incorrectly).
+
+
+
+-- This service indirectly improves the speed of our read operations.
+
+
+-- It is best used to improve execution times of queries that spend a lot of time/processing with "REMOTE DISK I/O" (extracting data out of 
+-- the deepest layer of Snowflake, in the AWS S3 Blob storage).
+
+
+
+-- One of QAS' advantages is its flexibility, which is greater than the increase/decrease of a warehouse's size.
+
+
+-- Its flexibility is provided by the "Scale Factor", 
+-- a COST CONTROL mechanism that allows you to set an upper bound 
+-- on the amount of compute resources a warehouse can LEASE 
+-- (Snowflake borrows us machines, for the sole 
+-- purpose of increasing query speed) for query 
+-- acceleration. This value is used as a MULTIPLIER 
+-- based on WAREHOUSE SIZE and COST.
+
+
+
+-- Example: scale factor of 5 for a MEDIUM-sized warehouse --> this means that this warehouse can borrow 
+-- resources up to 5 times its size. (and 5 times the cost, totalling up to 20 credits per hour, 4 x 5).
+
+
+
+-- This means that QAS is essentially a multiplier, based on the currently selected warehouse size.
+
+-- It should be used when query takes more time with "Remote Disk I/O", with the extraction of data from the storage layer (table scan).
+
+
+-- Before we utilize/apply the service, we should check if our queries are ELIGIBLE for its use, with this code (ACCOUNTADMIN role needed):
+-- Also, the query must have been executed before, so we can get its query_id string.
+SELECT PARSE_JSON(system$estimate_query_acceleration('<query_id>'));
+
+
+-- The outputted JSON's format:
+
+-- {"originalQueryTime": 252
+-- "eligible": true,
+-- "upperLimitScaleFactor": 1
+-- }
+
+-- Check more queries, see if they are eligible for Query Acceleration Service.
+-- If a lot of queries are eligible, and if the calculated costs are sensible, we can consider it.
+SELECT * FROM snowflake.account_usage.query_acceleration_eligible
+ORDER BY eligible_query_acceleration_time DESC;
+
+
+
+
+
+-- However, the Query Acceleration Service brings with it two important caveats:
+
+-- 1) Only fetching (SELECT) and filtering operations are affected by the acceleration (UPDATEs and DELETEs don't get impacted).
+-- The best-use case for it is queries that spend 75%-80% of the time in full table scans.
+
+
+-- 2) When using QAS, queries will no longer be able to benefit from Warehouse Caching (because the machines used by/with QAS 
+-- will be borrowed machines, different from the machines of your warehouse's cluster)
