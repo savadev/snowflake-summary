@@ -526,9 +526,6 @@ SE VC FOR O ADMIN, VC TAMBÉM TEM ESTE COMANDO:
 
 
 -- Show open transactions with SESSION ID AND USER:
-
-
-
 SHOW transactions IN account;
 
 
@@ -544,11 +541,6 @@ SHOW transactions IN account;
 
 
 -- Kill all queries for the session:
-
-
-
-
-
 SELECT SYSTEM$CANCEL_ALL_QUERIES(<your_session_id>);
 
 

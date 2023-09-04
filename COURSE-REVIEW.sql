@@ -71,7 +71,8 @@ CREATE OR REPLACE TABLE DEMO_DB.PUBLIC.SOME_TABLE ( -- PERMANENT
     FIELD_A STRING NOT NULL, -- "not null" is the only constraint that is enforced, in Snowflake. All other constraints (even primary/foreign keys) are not enforced, and only kept as metadata
     FIELD_B NUMBER,
     FIELD_C DATE,
-    FIELD_D VARIANT
+    FIELD_D VARIANT,
+ --   CONSTRAINT PK_FIELD_A_ID PRIMARY KEY (FIELD_A) -- Does not exist in Snowflake (the only constraint that is enforced is NOT NULL).
 ); 
 
 CREATE OR REPLACE TRANSIENT TABLE DEMO_DB.PUBLIC.SOME_TABLE ( -- TRANSIENT 
@@ -558,3 +559,28 @@ SELECT SYSTEM$CLUSTERING_INFORMATION('CUSTOMER_ORDER_BY_EXAMPLE', '(C_MKTSEGMENT
 -- 2) When you are trying to DELETE or UPDATE rows in your tables, always try to use numeric columns as identifiers/
 -- WHERE filters, because Snowflake's scanning mechanism is better suited/optimized for numbers (strings are a bad choice, 
 -- for these operations).
+
+
+
+
+
+-- To view queries blocked by other queries:
+SHOW LOCKS;
+
+-- Abort a transaction/statement (all statements, by themselves, are transactions).
+SELECT SYSTEM$ABORT_TRANSACTION(<your_transaction_id>)
+
+-- Cancel a query. mid-execution.
+SELECT SYSTEM$CANCEL_QUERY(<your_query_id>)
+
+-- Show open transactions with SESSION ID AND USER.
+SHOW transactions IN account;
+
+-- Kill all queries for the session.
+SELECT SYSTEM$CANCEL_ALL_QUERIES(<your_session_id>);
+
+--Aborts a session in our system.
+SELECT SYSTEM$ABORT_SESSION(<your_session_id>)
+
+-- How long can queries stay queried up (waiting for another query)?
+SHOW PARAMETERS; -- "LOCK_TIMEOUT" -> is the amount of time allowed(1 hour and 10 minutes, basically).
