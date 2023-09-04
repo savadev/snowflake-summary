@@ -689,8 +689,8 @@ This will cost you money, but can be a
  quick fix if you need a solution ASAP.
   The amount of memory that Snowflake has
    available for a given query is governed by
-    warehouse size, so if you up the warehouse
-    , you up your memory.
+    warehouse size, so if you up the warehouse,
+     you up your memory.
 
 
 

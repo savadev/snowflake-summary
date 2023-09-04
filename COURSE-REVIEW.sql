@@ -710,10 +710,10 @@ AND WAREHOUSE_NAME=:my_warehouse; -- custom filter (created by us) example.
 -- How to read and analyze some of the dashboards' data:
 
 
+-- 0) Remember, we can check utilization of warehouses by days/periods; for that, we must use the dynamic filters.
 
 -- 1) "GB Written" --> if this number is greater than "GB written to result", this means our warehouse is being 
 -- used mainly to load data into tables.
-
 
 -- 2) "GB Written to result" --> if this number is greater than "GB Written", this means our warehouse is 
 -- being used mainly to retrieve result sets with SELECT (select queries, Tableau, Snowflake web console).
@@ -727,3 +727,46 @@ AND WAREHOUSE_NAME=:my_warehouse; -- custom filter (created by us) example.
 -- 3.1) Very Active === Warehouses that are idle 25% of the time or less.
 -- 3.2) Active === Warehouses that are between 25% and 75% of the time idle.
 -- 3.3) Dormant === Warehouses that are 75% or more of the time idle.
+
+-- 5) You should be wary of each type of data use, and its values. If the values are too high, it may indicate a serious problem with your queries:
+
+    -- 5.1) "GB Written" too high - This means that a lot of data is being inserted/updated on Snowflake. You should think about costs with storage,
+    -- both active bytes, time travel bytes and failsafe bytes, which can generate a very high combined cost. You must ensure that this is really business 
+    -- critical data, and not junk data.
+    -- 5.2) "GB Written to result" too high - This means that your queries are probably written incorrectly, and are retrieving/writing data to the Snowflake 
+    -- Web Console (which is a very bad thing, because the console/GUI can only show up to 1.5 million records per query; the rest of the records is not 
+    -- shown/outputted)
+    -- 5.3) "GB Scanned" too high - This may indicate that you wrote inefficient queries, that they are pulling almost all of the records in the table,
+    -- or scanning almost all partitions.
+
+-- 6) "GB_SPILLED_TO_LOCAL_STORAGE" too high, in a query - This means that your query is too demanding, works with too much data, and the current 
+-- warehouse is not able to support/execute your queries satisfactorily. You should use a larger warehouse, or process your data in smaller batches.
+
+https://github.com/dbt-labs/docs.getdbt.com/discussions/1550
+
+"One of the biggest killers of performance in Snowflake is queries spilling to either local or remote storage.
+This happens when your query processes more data than your virtual warehouse can hold in memory,
+and is directly related to the size of your warehouse."
+
+
+-- Possible Solutions:
+
+-- A) Throw resources at it, and hope it goes away. This will cost you money, but can be a
+-- quick fix if you need a solution ASAP. The amount of memory that Snowflake has available
+-- for a given query is governed by warehouse size, so if you up the warehouse, you up your
+-- memory.
+
+
+-- B) Process your data in smaller chunks. By limiting the amount of data that a query
+-- processes you can potentially prevent spilling anything to local/remote storage.
+
+
+-- C) Watch out for big CTEs. (WITH clauses in our SELECTs) If you're processing a ton of data
+-- in multiple CTEs in the same query, there's a good chance you'll hit this problem. 
+-- Since CTEs process their results in memory, it hogs that resource for the query. 
+-- Try converting your largest CTEs into views and see if that solves the problem.
+
+
+
+-- 7) "GB SPILLED TO REMOTE STORAGE" too high, in a query - Same thing as Point 6, your query is probably too demanding. The assigned compute 
+-- may not be enough.
