@@ -937,6 +937,28 @@ used in those queries."
 
 -- 5) Your queries are not eligible for QAS (Query Acceleration Service)
 
--- 6) Clustering is not viable, and loading data while ordering (ORDER BY) it is not being enough.
+-- 6) Clustering is not viable, and loading data while ordering (ORDER BY) it is not good enough.
 
 
+-- Example code:
+
+
+-- Create table with 6 billion rows.
+CREATE TABLE DEMO_DB.PUBLIC.LINEITEM_SOS
+AS
+SELECT * FROM
+SNOWFLAKE_SAMPLE_DATA.TPCH_SF1000.LINEITEM;
+
+-- Clone original table's structure and data (zero-copy-clone)
+CREATE TABLE DEMO_DB.PUBLIC.LINEITEM_NO_SOS CLONE DEMO_DB.PUBLIC.LINEITEM_SOS;
+
+-- Add search optimization on certain columns - this creates/uses extra storage, so be careful (185gb table gets 30gb extra storage, for these 2 columns with SOS).
+ALTER TABLE DEMO_DB.PUBLIC.LINEITEM_SOS ADD SEARCH OPTIMIZATION ON EQUALITY(L_COMMENT);
+ALTER TABLE DEMO_DB.PUBLIC.LINEITEM_SOS ADD SEARCH OPTIMIZATION ON EQUALITY(L_ORDERKEY);
+
+-- Column "search_optimization" (ON/OFF). Also ""
+SHOW TABLES;
+
+-- Shows the difference between search optimization enabled and disabled:
+SELECT * FROM DEMO_DB.PUBLIC.LINEITEM_SOS WHERE L_ORDERKEY = '4509487233';  -- Takes 6 seconds, roughly.
+select * from DEMO_DB.PUBLIC.LINEITEM_NO_SOS where L_orderkey = '4509487233'; -- Takes 43 seconds, roughly
