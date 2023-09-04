@@ -47,6 +47,16 @@ SELECT * FROM TABLE(INFORMATION_SCHEMA.WAREHOUSE_METERING_HISTORY(CURRENT_DATE()
 
 
 
+-- Great advantages of Snowflake:
+
+-- 1) Warehouses are always available, and are decoupled from storage
+
+-- 2) Excellent storage of metadata information (we can leverage that metadata to timetravel, build streams, dashboards, and more)
+
+
+
+
+
 -- Creating Databases, Schemas and Tables - Permanent, Transient and Temporary.
 
 -- Shows the DATA DEFINITION LANGUAGE COMMAND (sql text) that was used to create this specific table
@@ -584,3 +594,51 @@ SELECT SYSTEM$ABORT_SESSION(<your_session_id>)
 
 -- How long can queries stay queried up (waiting for another query)?
 SHOW PARAMETERS; -- "LOCK_TIMEOUT" -> is the amount of time allowed(1 hour and 10 minutes, basically).
+
+
+
+
+
+
+
+
+
+-- MODULE 7 -- 
+
+
+
+-- Snowsight (Graphical User Interface) and Dashboards
+
+
+
+-- Some of your compute cost will always be associated to idle time. 
+-- We should view that idle time in a dashboard, to optimize our Snowflake usage.
+
+
+
+-- Metadata tables will be used to build the dashboard. The metadata tables used are:
+
+
+-- 1) WAREHOUSE_METERING_HISTORY (view) 
+
+-- 2) QUERY_HISTORY (view)
+
+-- 3) WAREHOUSE_EVENTS_HISTORY (view) --> provides info about "when warehouse was suspended, when warehouse was started" (we can calculate idle time upon that).
+
+
+
+
+
+
+-- This query can only be run with the "ACCOUNTADMIN" role. - We can use this query to view the amount of credits consumed
+-- (and if we multiply by 2, 3, 4, we can get the amount of dollars spent, instead of credits).
+SELECT * FROM SNOWFLAKE.ACCOUNT_USAGE.WAREHOUSE_METERING_HISTORY;
+
+-- Returns a lot of metadata info about our queries. 
+-- "Bytes_spilled_to_local_storage" and "bytes_spilled_to_remote_storage" --> if these values are high, the query is very performance-intensive.
+SELECT * FROM SNOWFLAKE.ACCOUNT_USAGE.QUERY_HISTORY;
+
+-- With this query, we can check when our warehouse was resumed, and when it was suspended. 
+-- We can calculate the idle time, and check if our warehouses are being used appropriately.
+SELECT * FROM SNOWFLAKE.ACCOUNT_USAGE.WAREHOUSE_EVENTS_HISTORY
+ORDER BY TIMESTAMP ASC;
