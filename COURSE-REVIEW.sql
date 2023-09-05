@@ -1157,6 +1157,7 @@ FILE_FORMAT=(
 
 -- 2) As they behave like regular snowflake objects, we can grant/revoke access, to them, to our various account roles (better access control).
 
+-- 3) A common best practice is the creation of folders insided of this stage, so we can atribute each folder to a table, inside our Snowflake system.
 
 
 -- Basic Stage Creation Syntax:
@@ -1218,6 +1219,8 @@ LIST @CONTROL_DB.INTERNAL_STAGE.MY_EXT_STAGE;
 -- Basic File Format Creation Syntax:
 
 
+
+
 -- Create CSV File Format
  CREATE OR REPLACE FILE FORMAT CONTROL_DB.FILE_FORMATS.MY_CSV_FORMAT
     TYPE=CSV,
@@ -1242,8 +1245,8 @@ DESC FILE FORMAT CONTROL_DB.FILE_FORMATS.MY_CSV_FORMAT;
 -- Load data - Third Object Type - Integration Object
 
 
-
 -- These are always needed for external stages, to have a secure connection between AWS and S3.
+
 
 
 -- Basic Integration Object Creation Syntax:
@@ -1259,7 +1262,7 @@ CREATE OR REPLACE STORAGE INTEGRATION <integration_name>
     STORAGE_ALLOWED_LOCATIONS=('<bucket-url>'); -- create bucket beforehand
 
 -- Describe Integration Object (mandatory, as we need the STORAGE_AWS_EXTERNAL_ID and
--- STORAGE_AWS_ROLE_ARN; we'll use this ID and this role in the AWS config, in IAM users)
+-- STORAGE_AWS_ROLE_ARN; we'll use this ID and this role in the AWS config, in IAM users/buckets, in "Trusted Relationships")
 DESC STORAGE INTEGRATION <integration_name>;
 
 -- Integration Object fields:
@@ -1273,8 +1276,7 @@ STORAGE_AWS_ROLE_ARN	        String	arn:aws:iam::269021562924:role/new-snowflake
 STORAGE_AWS_EXTERNAL_ID	        String	   UU18264_SFCRole=2_TBE7RjHPfSqmCjne1y5exkh5IDQ=	
 COMMENT	                        String		
 
--- In AWS, create IAM user and Role, and edit the permmissions' JSON:
-
+-- In AWS, create IAM user and Role, policy "s3FullAccess", and edit the permmissions' JSON:
 {
 	"Version": "2012-10-17",
 	"Statement": [
@@ -1293,7 +1295,19 @@ COMMENT	                        String
 	]
 }
 
+-- Finally, after setting up AWS and Snowflake with this 
+-- Storage Integration Object, create a secure Stage Object and validate/check if connection between two systems is valid
 
+-- Create Stage Object
+CREATE OR REPLACE STAGE CONTROL_DB.EXTERNAL_STAGES.MY_EXT_STAGE 
+    url='s3://snowflake867/test/'
+    STORAGE_INTEGRATION=<integration_name> -- our Integration Object
+    FILE_FORMAT=(
+        FORMAT_NAME=<format_name>
+    );
+
+-- Check Connection Between Systems
+LIST @CONTROL_DB.EXTERNAL_STAGES.MY_EXT_STAGE; -- will show the files in our bucket.
 
 
 
@@ -1336,3 +1350,228 @@ rm @DEMO_DB.PUBLIC.%EMP_BASIC; -- in Snow CLI
 
 -- Select rows in EMP_BASIC Table (the result set will be empty, just like the table, as the files will still only exist in the Table Stage's blob storage)
 SELECT * FROM DEMO_DB.PUBLIC.EMP_BASIC LIMIT 100;
+
+
+
+
+
+-- Example of Snow CLI usage, to download files (from Table and Named stages):
+
+
+-- Download file (.csv) from Table Stage to local storage
+GET @DEMO_DB.PUBLIC.%EMP_BASIC
+file:///path/to/your/local/file/storage/that/will/receive/the/file;
+
+
+
+
+
+
+
+
+
+-- The Copy Command
+
+
+-- One quirk of the copy command, very important to know, is that 
+-- Snowflake stores the md5 hash values of each of the files loaded into your tables.
+-- If you are trying to load the same file repeatedly, Snowflake will stop you: it will 
+-- compare the md5 value of the to-be-loaded file and the md5 value of the file you already
+-- loaded, find out they are equal, and then will stop the load proccess. This is done to 
+-- avoid the creation of duplicate rows in our tables. To bypass this behavior, if needed, 
+-- we must set the option "FORCE=TRUE" in our COPY commands.
+
+
+
+-- Copying into Snowflake tables from S3 External Stage, examples:
+
+
+
+-- Copying from AWS External Stage, most basic format:
+COPY INTO <table_name> -- create table beforehand (with appropriate columns and data types for each column)
+FROM @CONTROL_DB.EXTERNAL_STAGES.S3_STAGE -- create stage beforehand
+FILE_FORMAT=(
+    FORMAT_NAME=CONTROL_DB.FILE_FORMATS.CSV_FORMAT -- create file format beforehand
+);
+
+
+-- Copying from AWS External Stage, forcing the repeated copy procedure of a file:
+COPY INTO <table_name>
+FROM @CONTROL_DB.EXTERNAL_STAGES.S3_STAGE
+FILE_FORMAT=(
+    FORMAT_NAME=CONTROL_DB.FILE_FORMATS.CSV_FORMAT
+)
+FORCE=TRUE;
+
+
+-- Copying from AWS External Stage, CSV file, only some of the columns of files:
+COPY INTO <table_name>
+FROM (
+    SELECT
+        t.$1,
+        t.$2,
+        t.$3,
+        t.$4,
+        t.$5,
+        t.$6
+        FROM @CONTROL_DB.EXTERNAL_STAGES.S3_STAGE  AS t ) 
+FILE_FORMAT=(
+    FORMAT_NAME=CONTROL_DB.FILE_FORMATS.CSV_FORMAT
+);
+
+
+-- Copying from AWS External Stage, CSV file, metadata (filename and file_row_number, to assist in migrations;
+-- with these values, we know exactly from which .csv file our rows were extracted) and some of the file's columns:
+COPY INTO <table_name>
+FROM (
+    SELECT
+        METADATA$FILENAME AS FILE_NAME,
+        METADATA$FILE_ROW_NUMBER,
+        t.$1,
+        t.$2,
+        t.$3
+        FROM @CONTROL_DB.EXTERNAL_STAGES.S3_STAGE  AS t ) 
+FILE_FORMAT=(
+    FORMAT_NAME=CONTROL_DB.FILE_FORMATS.CSV_FORMAT
+);
+
+
+-- The same as the code seen above, but FILE_NAME column's values are cleaner 
+-- ("@employees03.csv.gz" format, instead of "@emp_basic_local/employees03.csv.gz")
+COPY INTO <table_name>
+FROM (
+SELECT 
+SPLIT_PART(METADATA$FILENAME, '/', 2) AS FILE_NAME,
+METADATA$FILE_ROW_NUMBER,
+T.$1,
+T.$2,
+T.$3
+FROM @CONTROL_DB.EXTERNAL_STAGES.S3_STAGE  AS t 
+)
+FILE_FORMAT=(
+    FORMAT_NAME=CONTROL_DB.FILE_FORMATS.CSV_FORMAT
+);
+
+
+-- After data was copied from AWS into Snowflake table, we can validate/check if all rows were loaded, with this simple SQL statement:
+SELECT 
+DISTINCT FILE_NAME AS FILE_NAME,
+COUNT (*) AS AMOUNT_OF_ROWS
+FROM <table_name> -- staging table, filled by the above statement
+GROUP BY FILE_NAME;
+
+
+
+
+
+
+
+
+
+
+
+-- Copying from Snowflake Internal Stages (Table and Named Stages) into Snowflake Tables, examples:
+
+
+
+
+
+-- Copy data into Snowflake table, from Internal (Table) staging area
+COPY INTO DEMO_DB.PUBLIC.EMP_BASIC
+FROM @DEMO_DB.PUBLIC.%EMP_BASIC
+FILE_FORMAT= (
+    FORMAT_NAME=CONTROL_DB.FILE_FORMATS.CSV_FORMAT;
+);
+
+-- Situational command, lets us view how our rows are being formatted, in the files present in our table staging area.
+SELECT
+    $1,
+    $2,
+    $3,
+    $4,
+    $5,
+    $6
+    FROM @DEMO_DB.PUBLIC.%EMP_BASIC
+    (
+        FILE_FORMAT => CONTROL_DB.FILE_FORMATS.CSV_FORMAT; -- to view the data correctly, we need to write the file format in, in this manner.
+    )
+    LIMIT 100;
+
+-- After loading the data, with this command, we can compare the loaded data with the data in the table staging area;
+-- if no rows are returned, the data was copied perfectly, and the two sets are identical.
+SELECT
+$1,
+$2,
+$3,
+$4,
+$5,
+$6 
+FROM @DEMO_DB.PUBLIC.%EMP_BASIC
+(FILE_FORMAT => CONTROL_DB.FILE_FORMATS.CSV_FORMAT)
+MINUS -- compares the data in the files in the table staging area to the already loaded data, loaded from the same files.
+SELECT * FROM DEMO_DB.PUBLIC.EMP_BASIC;
+
+
+
+
+
+
+
+-- Copy data into Snowflake table, from Internal (Named) staging area
+COPY INTO DEMO_DB.PUBLIC.EMP_BASIC
+FROM @DEMO_DB.PUBLIC.EMP_BASIC
+FILE_FORMAT= (
+    FORMAT_NAME=CONTROL_DB.FILE_FORMATS.CSV_FORMAT;
+);
+
+-- Feed files into Named Stage, from file system, for future use (copy into tables)
+put 'file:///path/to/your/local/file/storage/that/will/upload/the/files/*'
+@CONTROL_DB.INTERNAL_STAGES.MY_INT_STAGE/EMP_BASIC;
+
+-- Describe Stage Object:
+DESC STAGE DEMO_DB.INTERNAL_STAGES.MY_INT_STAGE
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+-- The inverse way ("unload" of data), copying/transferring data from Snowflake tables to Stages (Internal, External), examples:
+
+
+
+-- Copy data from Snowflake table (tabular data) into Table Stage (csv files, parquet data, json, etc)...
+COPY INTO @DEMO_DB.PUBLIC.%EMP_BASIC
+FROM DEMO_DB.PUBLIC.EMP_BASIC
+FILE_FORMAT=(
+    FORMAT_NAME=CONTROL_DB.FILE_FORMATS.CSV_FORMAT
+);
+
+-- Copy only some columns of your table into Table Stage
+COPY INTO @DEMO_DB.PUBLIC.%EMP_BASIC
+FROM (
+    SELECT
+    FIRST_NAME,
+    LAST_NAME,
+    EMAIL
+    FROM  DEMO_DB.PUBLIC.EMP_BASIC
+)
+FILE_FORMAT=(
+    FORMAT_NAME=CONTROL_DB.FILE_FORMATS.CSV_FORMAT
+)
+-- OVERWRITE=TRUE; -- used if you want to replace a file that is already living in the stage area.
+
+
+-- Downloads the files to your local system, in csv/json/parquet format; these are the files now residing 
+-- in the  Table Staging Area. This command can only be used inside Snow CLI (does not work in worksheets)
+GET @DEMO_DB.PUBLIC.%EMP_BASIC
+file:///path/to/your/local/file/storage/that/will/receive/the/file;
