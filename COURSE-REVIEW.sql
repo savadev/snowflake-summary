@@ -1237,7 +1237,7 @@ ALTER FILE FORMAT CONTROL_DB.FILE_FORMATS.MY_CSV_FORMAT
     SET TYPE='JSON',
     ERROR_ON_COLUMN_COUNT_MISMATCH=FALSE;
 
--- Alter CSV File Format - Example 2
+-- Alter File Format - Example 2
 ALTER FILE FORMAT CONTROL_DB.FILE_FORMATS.MY_CSV_FORMAT
     SET TYPE='PARQUET',
     SNAPPY_COMPRESSION=TRUE;
@@ -1464,6 +1464,10 @@ FROM @CONTROL_DB.EXTERNAL_STAGES.S3_EXTERNAL_STAGE AS T;
 -- avoid the creation of duplicate rows in our tables. To bypass this behavior, if needed, 
 -- we must set the option "FORCE=TRUE" in our COPY commands.
 
+-- Always use a dedicated warehouse (size Large is good enough, for most cases)
+-- to load/unload your data, as the process must not be stopped once it is started.
+
+-- .gzip files are supported in copy commands, but .zip files aren't. (must be unzipped, first).
 
 
 -- Copying into Snowflake tables from S3 External Stage, examples:
@@ -1616,11 +1620,7 @@ DESC STAGE DEMO_DB.INTERNAL_STAGES.MY_INT_STAGE
 
 
 
-
-
-
 -- The inverse way ("unload" of data), copying/transferring data from Snowflake tables to Stages (Internal, External), examples:
-
 
 
 -- Copy data from Snowflake table (tabular data) into Table Stage (csv files, parquet data, json, etc)...
@@ -1677,6 +1677,7 @@ file:///path/to/your/local/file/storage/that/will/receive/the/file;
 
 -- Error handling example: 
 
+
 -- Create Staging Table
 CREATE OR REPLACE TRANSIENT TABLE DEMO_DB.PUBLIC.EMP_BASIC (
     FIRST_NAME STRING,
@@ -1719,3 +1720,133 @@ SPLIT_PART(rejected_record, ',', 4 ) as streetaddress,
 SPLIT_PART(rejected_record, ',', 5 ) as city,
 SPLIT_PART(rejected_record, ',', 6 ) as start_date
 FROM DEMO_DB.PUBLIC.REJECTED_RECORDS;
+
+
+
+
+
+
+
+
+
+-- MODULE 13 -- 
+
+
+
+-- External Tables --
+
+
+-- In the MODULE 11, at the beginning, there is an example 
+-- of how to query data from S3 directly, using Snowflake but 
+-- without using many of its features (caching, micropartitions, table scans);
+-- in that approach, we use views to query the data stored in S3.
+
+-- However, there is an alternative approach, generaly better 
+--than direct SELECTs and views, that is the usage of External Tables, 
+-- to query that S3 data directly. This approach is much better because 
+-- it leverages the metadata feature of snowflake, to make the queries much 
+-- faster. 
+
+-- With external tables, Snowflake can actually use caching and metadata, and 
+-- can pinpoint "which files need to be queried from the bucket" whenever we run
+-- any query, on top of these tables (differently from views and direct Selects, 
+-- which will always query all the files in our buckets).
+
+-- The External Table approach is still not the most optimal one (the most optimal 
+-- would be to load all the data into Snowflake and use all its features), but it 
+-- is still better than direct SELECT queries and Views.
+
+-- These External Tables, by default, always start with only a single 
+-- column, named "VALUE", of data type "VARIANT" (json objects). If we want these tables 
+-- to have "regular" columns, with single values inside them, we must 
+-- use the Snowflake access syntax (with "col:key_name", like "VALUE:c1", for example). However,
+-- even if we use that syntax and omit the "VALUE" column, it will still be included in the final 
+-- table, along with the "normal" columns.
+
+
+
+
+-- Syntax:
+
+
+
+-- Create External Table
+CREATE OR REPLACE EXTERNAL TABLE DEMO_DB.PUBLIC.<EXT_TABLE_NAME>
+WITH LOCATION = @CONTROL_DB.EXTERNAL_STAGES.MY_EXT_STAGE -- mandatory - our s3 external stage, with the integration object already set up.
+FILE_FORMAT=(
+    FORMAT_NAME=CONTROL_DB.FILE_FORMATS.CSV_FORMAT
+);
+
+-- Describe External Table
+DESC TABLE ext_table_example;
+
+-- Table format will be:
+
+--
+-- name: value  (the column's name will be 'VALUE')
+-- type: VARIANT 
+-- kind: column 
+-- null: y 
+-- default: null
+--
+
+-- Check validity
+SELECT * FROM ext_table LIMIT 100;
+
+-- Values, in each row, will have this format (data type VARIANT, single column, of name "VALUE"):
+
+-- {   "c1": "Nyssa",   "c2": "Dorgan",   "c3": "ndorgan5@sf_tuts.com",   "c4": "7 Tomscot Way",   "c5": "Pampas Chico",   "c6": "4/13/2017" }
+-- {   "c1": "Catherin",   "c2": "Devereu",   "c3": "cdevereu6@sf_tuts.co.au",   "c4": "535 Basil Terrace",   "c5": "Magapit",   "c6": "12/17/2016" }
+-- {   "c1": "Grazia",   "c2": "Glaserman",   "c3": "gglaserman7@sf_tuts.com",   "c4": "162 Debra Lane",   "c5": "Shiquanhe",   "c6": "6/6/2017" }
+
+
+
+-- Create another table, transient, based on that external table's single column's values (with "normal" columns and values):
+CREATE OR REPLACE TRANSIENT TABLE DEMO_DB.PUBLIC.FORMATTED_EXT_TABLE
+AS 
+SELECT 
+VALUE:c1 AS first_name,
+VALUE:c2 AS last_name,
+VALUE:c3 AS email,
+VALUE:c4 AS street_address,
+VALUE:c5 AS country,
+VALUE:c6 AS created_date
+FROM DEMO_DB.PUBLIC.<EXT_TABLE_NAME>;
+
+-- Create another table based on external table, while transforming data types:
+CREATE OR REPLACE TRANSIENT TABLE DEMO_DB.PUBLIC.FORMATTED_EXT_TABLE
+AS 
+SELECT 
+VALUE:c1::STRING AS first_name,
+VALUE:c2::STRING AS last_name,
+VALUE:c3::STRING AS email,
+VALUE:c4::STRING AS streetaddress,
+VALUE:c5::STRING AS country,
+VALUE:c6::DATE AS created_date
+FROM DEMO_DB.PUBLIC.<EXT_TABLE_NAME>;
+
+-- Create External Table in a specific format (but "VALUE" field will still be included)
+CREATE OR REPLACE EXTERNAL TABLE DEMO_DB.PUBLIC.<EXT_TABLE_NAME>
+(
+    FIRST_NAME STRING AS (value:c1::string),
+    LAST_NAME STRING(20) AS (value:c2::string),
+    EMAIL STRING AS (value:c3::string)
+)
+WITH LOCATION=@CONTROL_DB.EXTERNAL_STAGES.MY_EXT_STAGE
+FILE_FORMAT=(
+    FORMAT_NAME=CONTROL_DB.FILE_FORMATS.CSV_FORMAT
+);
+
+-- Values, in each row, will have this format:
+
+-- VALUE                                                                                                                                               FIRST_NAME  LAST_NAME    EMAIL
+-- {   "c1": "Di",   "c2": "McGowran",   "c3": "dmcgowrang@sf_tuts.com",   "c4": "1856 Maple Lane",   "c5": "Banjar Bengkelgede",   "c6": "2017-04-22" }	    Di	McGowran	dmcgowrang@sf_tuts.com
+-- {   "c1": "Carson",   "c2": "Bedder",   "c3": "cbedderh@sf_tuts.co.au",   "c4": "71 Clyde Gallagher Place",   "c5": "Leninskoye",   "c6": "2017-03-29" }	Carson	Bedder	cbedderh@sf_tuts.co.au
+-- {   "c1": "Dana",   "c2": "Avory",   "c3": "davoryi@sf_tuts.com",   "c4": "2 Holy Cross Pass",   "c5": "Wenlin",   "c6": "2017-05-11" }	                    Dana	Avory	davoryi@sf_tuts.com
+
+
+-- Check External Table metadata
+SELECT * FROM table(SNOWFLAKE.INFORMATION_SCHEMA.EXTERNAL_TABLE_FILES(TABLE_NAME => '<ext_table_name>'));
+
+-- Check External Table metadata
+SELECT * FROM table(SNOWFLAKE.INFORMATION_SCHEMA.EXTERNAL_TABLE_FILE_REGISTRATION_HISTORY(TABLE_NAME=>'<ext_table_name>'));

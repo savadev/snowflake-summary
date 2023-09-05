@@ -270,22 +270,9 @@ ficamos com:
 
 
 name: value 
-
-
-
 type: VARIANT 
-
-
-
-
 kind: column 
-
-
-
 null: y 
-
-
-
 default: null 
 
 
