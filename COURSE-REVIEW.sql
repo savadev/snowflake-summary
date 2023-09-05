@@ -1232,10 +1232,15 @@ SHOW STAGES;
     COMPRESSION=gzip; -- for files in ".csv.gzip" format
 
 
--- Alter CSV File Format - Example
+-- Alter File Format - Example 1
 ALTER FILE FORMAT CONTROL_DB.FILE_FORMATS.MY_CSV_FORMAT
     SET TYPE='JSON',
     ERROR_ON_COLUMN_COUNT_MISMATCH=FALSE;
+
+-- Alter CSV File Format - Example 2
+ALTER FILE FORMAT CONTROL_DB.FILE_FORMATS.MY_CSV_FORMAT
+    SET TYPE='PARQUET',
+    SNAPPY_COMPRESSION=TRUE;
 
 -- Describe File Format Object's properties - many of them are also present in stage object, but we should always try to define properties'
 -- values in the File Format objects, and not stages (best practice - you should try not to write file_format argument inline, in copy command)
