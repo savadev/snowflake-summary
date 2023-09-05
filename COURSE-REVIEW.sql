@@ -1222,7 +1222,7 @@ LIST @CONTROL_DB.INTERNAL_STAGE.MY_EXT_STAGE;
 
 
 -- Create CSV File Format
- CREATE OR REPLACE FILE FORMAT CONTROL_DB.FILE_FORMATS.MY_CSV_FORMAT
+ CREATE OR REPLACE FILE FORMAT CONTROL_DB.FILE_FORMATS.CSV_FORMAT
     TYPE=CSV,
     FIELD_DELIMITER=',',
     SKIP_HEADER=1,
@@ -1230,6 +1230,11 @@ LIST @CONTROL_DB.INTERNAL_STAGE.MY_EXT_STAGE;
     EMPTY_FIELD_AS_NULL=true
     COMPRESSION=gzip; -- for files in ".csv.gzip" format
 
+
+-- Alter CSV File Format - Example
+ALTER FILE FORMAT CONTROL_DB.FILE_FORMATS.MY_CSV_FORMAT
+    SET TYPE='JSON',
+    ERROR_ON_COLUMN_COUNT_MISMATCH=FALSE;
 
 -- Describe File Format Object's properties - many of them are also present in stage object, but we should always try to define properties'
 -- values in the File Format objects, and not stages (best practice - you should try not to write file_format argument inline, in copy command)
