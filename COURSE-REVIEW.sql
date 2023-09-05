@@ -1763,8 +1763,14 @@ FROM DEMO_DB.PUBLIC.REJECTED_RECORDS;
 -- even if we use that syntax and omit the "VALUE" column, it will still be included in the final 
 -- table, along with the "normal" columns.
 
+-- However, if we are to use External Tables, we need to integrate them with the SQS (the one I know how to set up)
+-- and SNS AWS services. If we don't, our External Tables won't refresh automatically when new files are uploaded 
+-- to our bucket. OBS: Snowflake maintains only a single SQS Queue for all your buckets.
 
-
+-- Optionally, if we want to leverage even more of Snowflake's features, we can partition our
+-- External Tables, utilizing "metada$filename" as the only parameter (that way, we can 
+-- create "pseudofolders" inside of our table, based on the filename criteria). For more info,
+-- check the example below, right after the manual refresh command.
 
 -- Syntax:
 
@@ -1825,6 +1831,9 @@ VALUE:c5::STRING AS country,
 VALUE:c6::DATE AS created_date
 FROM DEMO_DB.PUBLIC.<EXT_TABLE_NAME>;
 
+-- Show All External Tables
+SHOW EXTERNAL TABLES;
+
 -- Create External Table in a specific format (but "VALUE" field will still be included)
 CREATE OR REPLACE EXTERNAL TABLE DEMO_DB.PUBLIC.<EXT_TABLE_NAME>
 (
@@ -1850,3 +1859,142 @@ SELECT * FROM table(SNOWFLAKE.INFORMATION_SCHEMA.EXTERNAL_TABLE_FILES(TABLE_NAME
 
 -- Check External Table metadata
 SELECT * FROM table(SNOWFLAKE.INFORMATION_SCHEMA.EXTERNAL_TABLE_FILE_REGISTRATION_HISTORY(TABLE_NAME=>'<ext_table_name>'));
+
+-- Manual refresh of External Table (cumbersome, but if we don't use AWS SNS and the auto-refresh feature, we 
+-- must do this every time a new file is uploaded to our buckets)
+ALTER EXTERNAL TABLE <ext_table_name> REFRESH;
+
+
+
+-- Optional - To save up costs and time spent with processing, if, when we run queries,
+-- we are 100% sure that some row can only exist inside of one of our files in the collection (thousand of files, for example) of 
+-- files in the s3 bucket, we can search for that specific file, considering its filename as a partition (less partitions scanned,
+-- less compute cost). This partition feature becomes especially useful when your volume of data increases over time.
+
+-- For that, we must write like this:
+
+
+
+-- Create External Table, but Partition By "DEPARTMENT" column, created by the usage of the "metadata$filename" value.
+CREATE OR REPLACE EXTERNAL TABLE DEMO_DB.PUBLIC.<EXT_TABLE_NAME>
+(
+    DEPARTMENT VARCHAR AS SUBSTR(METADATA$FILENAME, 5, 11), -- "department" will be values like 'employees01', 'employees02', extracted from filenames like 'employee2112312.csv.gz'
+    FIRST_NAME STRING AS (VALUE:c1::string),
+    LAST_NAME STRING(20) AS (VALUE:c2::string),
+    EMAIL STRING AS (VALUE:c3::string)
+    PARTITION BY (DEPARTMENT)
+    WITH LOCATION = @CONTROL_DB.EXTERNAL_STAGES.MY_EXT_STAGE
+    FILE_FORMAT=(
+        FORMAT_NAME=CONTROL_DB.FILE_FORMATS.CSV_FORMAT;
+    )
+);
+
+
+-- To utilize the partitions (reduce processing costs and time), we must run SELECTS like this:
+SELECT
+*
+FROM DEMO_DB.PUBLIC.<EXT_TABLE_NAME>
+WHERE department='employees03' -- usage of partitions
+ AND first_name='John';
+
+
+
+ -- How to set up AWS SQS, to auto-refresh our external tables each time our buckets receive new files:
+
+
+-- 1) The property "AUTO_REFRESH" is already defined as TRUE, as a default, in every external table. However,
+-- this is not enough, we need to apply some settings in our buckets, also.
+
+-- 2) In our bucket, we must click on "properties", and then on "event notifications", and then on "create".
+
+-- 3) Select "All object creation events" and "All object removal events".
+
+-- 4) In "Destination", select SQS Queue.
+
+-- 5) In "Specify SQS Queue", choose "Enter SQS Queue ARN".
+
+-- 6) Back in snowflake, run:
+
+    SHOW EXTERNAL TABLES;
+
+-- 7) Copy the value of the column "notification_channel"; that string will be our SQS Queue ARN.
+
+-- 8) Paste that string into the "Enter SQS Queue ARN" field.
+
+-- 9) The auto-refresh feature now will be activated.
+
+
+
+
+
+
+-- MODULE 14 -- 
+
+
+
+-- COPY command options 
+
+
+
+-- The options are:
+
+
+-- 1) VALIDATION_MODE
+
+"This option instructs the copy command to validate the data 
+files instead of loading them into the specified table; i.e. 
+The copy command tests the files for errors, but does not
+ load them. The command validates the data to be loaded and
+then returns results based on the validation option specified."
+
+-- VALIDATION_MODE, then, helps us save costs with storage.
+
+-- It's always a good idea to include this option in the 
+-- COPY command before we actually try to copy data into our 
+-- tables.
+
+-- One of its quirks is that it does not support COPY
+-- statements that transform data during loads.
+
+-- Possible values are:
+
+-- a) 'RETURN_X_ROWS' (rarely used) - Validates the specified number of rows, if no errors are encountered; otherwise, fails at the first error encountered in the rows.
+
+-- b) 'RETURN_ERRORS' - Returns all errors (parsing, conversion, etc.) across all files specified in the COPY statement. if no rows are returned, there are no errors
+
+-- c) 'RETURN_ALL_ERRORS' -- The same as the value seen above, but also
+-- includes files with errors that were partially 
+-- loaded during an earlier load because the ON_ERROR
+-- copy option was set to CONTINUE during the load.
+
+
+
+-- 2) FILES/PATTERN 
+
+
+-- 3) ON_ERROR - Very important Option.
+
+
+-- The default behavior, for this option, is "ABORT_STATEMENT".
+
+-- If you are building data pipelines, this option must always 
+-- be set as 'CONTINUE', to avoid breaking the pipeline's execution.
+
+-- Even if we set its value as "CONTINUE", we don't need to worry 
+-- about failed records, because we can always get them, later, by 
+-- running the query
+
+SELECT * FROM TABLE(VALIDATE(DEMO_DB.PUBLIC.EMP_BASIC, JOB_ID => <your_query_id>));
+
+
+
+-- 4) ENFORCE_LENGTH and TRUNCATECOLUMNS
+
+
+-- 5) FORCE
+
+
+-- 6) PURGE
+
+
+-- 7) LOAD_HISTORY (view) and COPY_HISTORY (function)
