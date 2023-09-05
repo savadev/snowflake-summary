@@ -1250,13 +1250,48 @@ DESC FILE FORMAT CONTROL_DB.FILE_FORMATS.MY_CSV_FORMAT;
 
 
 
+-- Create Integration Object
 CREATE OR REPLACE STORAGE INTEGRATION <integration_name>
     TYPE=EXTERNAL_STAGE
     STORAGE_PROVIDER=S3
     ENABLED=TRUE
-    STORAGE_AWS_ROLE_ARN='arn:aws:iam::*******************:role/snowflake'
-    STORAGE_ALLOWED_LOCATIONS=('<bucket-url>');
+    STORAGE_AWS_ROLE_ARN='arn:aws:iam::*******************:role/snowflake' -- a "snowflake" dedicated IAM user is needed, in AWS, to utilize this value
+    STORAGE_ALLOWED_LOCATIONS=('<bucket-url>'); -- create bucket beforehand
 
+-- Describe Integration Object (mandatory, as we need the STORAGE_AWS_EXTERNAL_ID and
+-- STORAGE_AWS_ROLE_ARN; we'll use this ID and this role in the AWS config, in IAM users)
+DESC STORAGE INTEGRATION <integration_name>;
+
+-- Integration Object fields:
+property	                    property_type	property_value	            property_default
+ENABLED	                        Boolean	            true	                    false
+STORAGE_PROVIDER	            String	            S3	
+STORAGE_ALLOWED_LOCATIONS	    List	s3://new-snowflake-course-bucket/CSV/	[]
+STORAGE_BLOCKED_LOCATIONS	    List		        []
+STORAGE_AWS_IAM_USER_ARN	    String	arn:aws:iam::543875725500:user/heeb0000-s	
+STORAGE_AWS_ROLE_ARN	        String	arn:aws:iam::269021562924:role/new-snowflake-access	
+STORAGE_AWS_EXTERNAL_ID	        String	   UU18264_SFCRole=2_TBE7RjHPfSqmCjne1y5exkh5IDQ=	
+COMMENT	                        String		
+
+-- In AWS, create IAM user and Role, and edit the permmissions' JSON:
+
+{
+	"Version": "2012-10-17",
+	"Statement": [
+		{
+			"Effect": "Allow",
+			"Principal": {
+				"AWS": "arn:aws:iam::269021562924:role/new-snowflake-access"
+			},
+			"Action": "sts:AssumeRole",
+			"Condition": {
+				"StringEquals": {
+					"sts:ExternalId": "UU18264_SFCRole=2_TBE7RjHPfSqmCjne1y5exkh5IDQ="
+				}
+			}
+		}
+	]
+}
 
 
 
