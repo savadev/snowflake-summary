@@ -1043,7 +1043,7 @@ CREATE TRANSIENT DATABASE CONTROL_DB;
 -- Create Schemas for each of the Snowflake Object types
 CREATE SCHEMA CONTROL_DB.INTERNAL_STAGES;
 CREATE SCHEMA CONTROL_DB.EXTERNAL_STAGES;
-CREATE SCHEMA CONTROL_DB.INTEGRATION_OBJECTS;
+CREATE SCHEMA CONTROL_DB.INTEGRATION_OBJECTS; -- Storage integration objects
 CREATE SCHEMA CONTROL_DB.FILE_FORMATS;
 CREATE SCHEMA CONTROL_DB.MASKING_POLICIES;
 CREATE SCHEMA CONTROL_DB.PIPES;
@@ -1170,6 +1170,14 @@ CREATE OR REPLACE STAGE CONTROL_DB.INTERNAL_STAGES.MY_INT_STAGE;
 CREATE OR REPLACE STAGE CONTROL_DB.EXTERNAL_STAGES.MY_EXT_STAGE 
     url='s3://snowflake867/test/';
 
+-- Create External Stage - secure (with Integration and File Format Objects)
+CREATE OR REPLACE STAGE CONTROL_DB.EXTERNAL_STAGES.MY_EXT_STAGE 
+    url='s3://snowflake867/test/'
+    STORAGE_INTEGRATION=<integration_name> -- Integration Object needed
+    FILE_FORMAT=(
+        FORMAT_NAME=<format_name> -- File Format Object needed
+    );
+
 -- Alter Stage Object
 ALTER STAGE CONTROL_DB.INTERNAL_STAGES.MY_INT_STAGE
     SET FILE_FORMAT=(
@@ -1194,10 +1202,17 @@ LIST @CONTROL_DB.INTERNAL_STAGE.MY_EXT_STAGE;
 
 
 
-
-
-
 -- Load data - Second Object Type - File Formats
+
+
+
+
+-- The greatest advantage of the File Format objects is 
+-- that it does not matter how many COPY commands you have,
+-- if you change the File Format that is registered to all of them,
+-- the changes's effects will be applied to all of the commands as well.
+
+
 
 
 -- Basic File Format Creation Syntax:
@@ -1222,11 +1237,43 @@ DESC FILE FORMAT CONTROL_DB.FILE_FORMATS.MY_CSV_FORMAT;
 
 
 
+
+
+-- Load data - Third Object Type - Integration Object
+
+
+
+-- These are always needed for external stages, to have a secure connection between AWS and S3.
+
+
+-- Basic Integration Object Creation Syntax:
+
+
+
+CREATE OR REPLACE STORAGE INTEGRATION <integration_name>
+    TYPE=EXTERNAL_STAGE
+    STORAGE_PROVIDER=S3
+    ENABLED=TRUE
+    STORAGE_AWS_ROLE_ARN='arn:aws:iam::*******************:role/snowflake'
+    STORAGE_ALLOWED_LOCATIONS=('<bucket-url>');
+
+
+
+
+
+
+
+
+
+
+
+-- Uploading files manually (via GUI and via Snow CLI):
+
+
+
 -- Using the Snowflake Web Console GUI, we can upload files, from our local machines,
 -- directly into our Snowflake tables; this practice is only recommended if you have up to 10k records.
 -- If we have more than that, the Snow CLI and its commands must be used.
-
-
 
 
 
@@ -1247,6 +1294,10 @@ CREATE TABLE DEMO_DB.PUBLIC.EMP_BASIC (
 -- List files, now present in Table Stage's blob storage area
 LIST @DEMO_DB.PUBLIC.%EMP_BASIC; -- in worksheets
 ls @DEMO_DB.PUBLIC.%EMP_BASIC; -- in Snow CLI
+
+-- Remove/delete files, present in Table Stage's blob storage area (to save storage costs), after their data has been copied to your tables
+REMOVE @DEMO_DB.PUBLIC.%EMP_BASIC; -- in worksheets 
+rm @DEMO_DB.PUBLIC.%EMP_BASIC; -- in Snow CLI
 
 -- Select rows in EMP_BASIC Table (the result set will be empty, just like the table, as the files will still only exist in the Table Stage's blob storage)
 SELECT * FROM DEMO_DB.PUBLIC.EMP_BASIC LIMIT 100;
