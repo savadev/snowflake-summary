@@ -1037,17 +1037,20 @@ snowsql -a <account-identifier> -u <username_in_the_account>  -- "account-identi
 -- This will greatly help us in the future, when we need to referenec them in our COPY commands:
 
 
--- Create a dedicated database for our Snowflake Objects:
-CREATE DATABASE CONTROL_DB;
+-- Create a dedicated database for our Snowflake Objects (we don't need the failsafe feature, so we create it as transient)
+CREATE TRANSIENT DATABASE CONTROL_DB;
 
--- Create Schemas for each of the Snowflake Object types:
+-- Create Schemas for each of the Snowflake Object types
+CREATE SCHEMA CONTROL_DB.INTERNAL_STAGES;
+CREATE SCHEMA CONTROL_DB.EXTERNAL_STAGES;
+CREATE SCHEMA CONTROL_DB.INTEGRATION_OBJECTS;
+CREATE SCHEMA CONTROL_DB.FILE_FORMATS;
+CREATE SCHEMA CONTROL_DB.MASKING_POLICIES;
+CREATE SCHEMA CONTROL_DB.PIPES;
 
 
 
--- Load data - Stages 
-
-
-
+-- Load data - First Object Type - Stages 
 
 
 
@@ -1082,7 +1085,6 @@ CREATE DATABASE CONTROL_DB;
 -- which is responsible for making the connection between Snowflake and S3, GCP, Azure, secure.
 
 -- One best practice is the usage of file format objects, which avoid repetition of code in your COPY commands.
-
 
 -- The most used Stages (from most used to least used) are External Stages, Named Stages and Table Stages.
 
@@ -1154,3 +1156,21 @@ FILE_FORMAT=(
 
 
 
+-- Basic Stage Creation Syntax:
+
+
+
+-- Create Internal Stage
+CREATE OR REPLACE STAGE CONTROL_DB.INTERNAL_STAGES.MY_INT_STAGE;
+
+-- Create External Stage - insecure (no Integration Object)
+CREATE OR REPLACE STAGE CONTROL_DB.EXTERNAL_STAGES.MY_EXT_STAGE 
+    url='s3://snowflake867/test/';
+
+-- Describe Stages' properties (location, database, schema, name, etc)
+DESC STAGE CONTROL_DB.INTERNAL_STAGE.MY_INT_STAGE;
+DESC STAGE CONTROL_DB.INTERNAL_STAGE.MY_EXT_STAGE;
+
+-- List files inside of stage
+LIST STAGE CONTROL_DB.INTERNAL_STAGE.MY_INT_STAGE;
+LIST STAGE CONTROL_DB.INTERNAL_STAGE.MY_EXT_STAGE;
