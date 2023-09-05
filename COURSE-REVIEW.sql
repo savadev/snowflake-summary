@@ -1019,3 +1019,138 @@ select * from DEMO_DB.PUBLIC.LINEITEM_NO_SOS where L_orderkey = '4509487233'; --
 
 -- To connect to our snowflake account/app, we must run, in the terminal:
 snowsql -a <account-identifier> -u <username_in_the_account>  -- "account-identifier" is something like <string>.us-east-2.aws
+
+
+
+
+
+
+
+
+
+
+-- MODULE 11 -- 
+
+
+-- Before loading data into our tables, we must create the auxiliary objects that will be used with the COPY command.
+-- As a best practice, we should create a dedicated database, where all these objects will be stored, a central place.
+-- This will greatly help us in the future, when we need to referenec them in our COPY commands:
+
+
+-- Create a dedicated database for our Snowflake Objects:
+CREATE DATABASE CONTROL_DB;
+
+-- Create Schemas for each of the Snowflake Object types:
+
+
+
+-- Load data - Stages 
+
+
+
+
+
+
+-- Stages are Snowflake objects that represent Blob Storage Areas (like S3),
+-- places where you load/upload all your raw files, before loading them into Snowflake tables.
+
+
+-- Stages contain properties like "location", which is the place where your files will be coming from.
+
+
+-- There are 2 types of Stages:
+
+
+
+-- 1) Internal Stages (staging areas managed by Snowflake itself)
+
+    -- 1.A) Table Staging Areas - Symbols are "@%"
+
+    -- 2.B) Named Staging Areas - Symbol is "@"
+
+    -- 3.C) User Staging Areas (rarely used) - Symbols are "@~"
+
+-- 2) External Stages (staging areas managed by third parties, such as S3, GCP, Azure.) - Symbol is "@"
+
+
+
+
+
+
+
+-- Unlike Internal Stages, External Stages must be prepared before being used. This preparation involves the creation of a Integration Object,
+-- which is responsible for making the connection between Snowflake and S3, GCP, Azure, secure.
+
+-- One best practice is the usage of file format objects, which avoid repetition of code in your COPY commands.
+
+
+-- The most used Stages (from most used to least used) are External Stages, Named Stages and Table Stages.
+
+
+
+
+-- A) Table Stages (least used):
+
+
+-- Each table has a snowflake stage allocated 
+-- to it, by default, for storing files. This stage 
+-- is a convenient option if your files need to be 
+-- accessible to multiple  users and only need 
+-- to be copied into a single table.
+
+
+
+
+-- They should be used when:
+
+-- 1) We have multiple users in our account.
+
+-- 2) We have multiple files in this stage.
+
+-- 3) All the data in the stage will be copied only to this single table, no COPYs to other tables.
+
+
+
+
+-- Some unique traits of Table Stages:
+
+-- 1) Unlike Named and External Stages, they cannot be dropped, as they are part of the table objects.
+
+-- 2) Unlike Named and External Stages, we cannot use File Format objects with them; if you want a 
+-- specific FILE_FORMAT, you must write it inline, like this:
+
+COPY INTO xxx 
+FROM @yyy
+FILE_FORMAT=(
+    SKIP_HEADER=1,
+    TYPE=CSV
+);
+
+-- 3) They do not support data transformations while loading data into your tables.
+
+
+
+
+
+-- B) Named Stages 
+
+
+-- Named stages are database objects that provide 
+-- the greatest degree of flexibility for data loading.
+-- Because they are database objects, the security/access 
+-- rules that apply to all objects also are applied 
+-- to this type of object.
+
+
+
+
+
+-- The great advantages of this Stage type are:
+
+
+-- 1) They can be used to load data into any of your tables.
+
+-- 2) As they behave like regular snowflake objects, we can grant/revoke access, to them, to our various account roles (better access control).
+
+
+
