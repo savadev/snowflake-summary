@@ -1198,7 +1198,8 @@ DESC STAGE CONTROL_DB.INTERNAL_STAGE.MY_EXT_STAGE; -- "location" will be your bu
 LIST @CONTROL_DB.INTERNAL_STAGE.MY_INT_STAGE;
 LIST @CONTROL_DB.INTERNAL_STAGE.MY_EXT_STAGE;
 
-
+-- Show all Stages 
+SHOW STAGES;
 
 
 
@@ -1240,7 +1241,8 @@ ALTER FILE FORMAT CONTROL_DB.FILE_FORMATS.MY_CSV_FORMAT
 -- values in the File Format objects, and not stages (best practice - you should try not to write file_format argument inline, in copy command)
 DESC FILE FORMAT CONTROL_DB.FILE_FORMATS.MY_CSV_FORMAT;
 
-
+-- Show all File Formats 
+SHOW FILE FORMATS;
 
 
 
@@ -1504,7 +1506,7 @@ FILE_FORMAT=(
 );
 
 
--- The same as the code seen above, but FILE_NAME column's values are cleaner 
+-- The same as the code seen above, but better - FILE_NAME column's values are cleaner. 
 -- ("@employees03.csv.gz" format, instead of "@emp_basic_local/employees03.csv.gz")
 COPY INTO <table_name>
 FROM (
@@ -1527,10 +1529,6 @@ DISTINCT FILE_NAME AS FILE_NAME,
 COUNT (*) AS AMOUNT_OF_ROWS
 FROM <table_name> -- staging table, filled by the above statement
 GROUP BY FILE_NAME;
-
-
-
-
 
 
 
@@ -1608,13 +1606,6 @@ DESC STAGE DEMO_DB.INTERNAL_STAGES.MY_INT_STAGE
 
 
 
-
-
-
-
-
-
-
 -- The inverse way ("unload" of data), copying/transferring data from Snowflake tables to Stages (Internal, External), examples:
 
 
@@ -1645,3 +1636,73 @@ FILE_FORMAT=(
 -- in the  Table Staging Area. This command can only be used inside Snow CLI (does not work in worksheets)
 GET @DEMO_DB.PUBLIC.%EMP_BASIC
 file:///path/to/your/local/file/storage/that/will/receive/the/file;
+
+
+
+
+
+
+
+
+-- MODULE 12 -- 
+
+
+-- Basic Error Handling During COPY command process --
+
+
+-- In real-life scenarios, it is extremely common 
+-- to receive errors during the execution of Copy commands.
+-- The errored-out records must not be ignored, and should 
+-- preferably be stored in an additional table, so they 
+-- can be debugged in the future.
+
+-- To achieve this goal, we must use the "ON_ERROR='CONTINUE'"
+-- option, in our COPY command.
+
+
+
+
+-- Error handling example: 
+
+-- Create Staging Table
+CREATE OR REPLACE TRANSIENT TABLE DEMO_DB.PUBLIC.EMP_BASIC (
+    FIRST_NAME STRING,
+    LAST_NAME STRING,
+    EMAIL STRING,
+    STREETADDRESS STRING,
+    CITY STRING,
+    START_DATE DATE
+);
+
+-- Continue copying, even with errors ("PARTIALLY LOADED")
+COPY INTO DEMO_DB.PUBLIC.EMP_BASIC
+FROM (
+    SELECT 
+    T.$1,
+    T.$2,
+    T.$3,
+    T.$4,
+    T.$5,
+    T.$6
+    FROM @CONTROL_DB.EXTERNAL_STAGES.MY_EXT_STAGE AS T
+)
+ON_ERROR='CONTINUE';
+
+-- Use "VALIDATE()" function, to show which records errored-out during the copy
+SELECT * FROM TABLE(VALIDATE(DEMO_DB.PUBLIC.EMP_BASIC, JOB_ID => <your_query_id>));
+
+-- Create a table, "REJECTED_RECORDS" with the format 'error_message - rejected record'
+CREATE OR REPLACE TABLE DEMO_DB.PUBLIC.REJECTED_RECORDS 
+AS 
+SELECT * FROM TABLE(VALIDATE(DEMO_DB.PUBLIC.EMP_BASIC, JOB_ID => <your_query_id>));
+
+-- Create another table, without the error messages, and only the rejected record's values in the columns.
+CREATE OR REPLACE TABLE DEMO_DB.PUBLIC.FORMATTED_REJECTED_RECORDS AS
+SELECT 
+SPLIT_PART(rejected_record, ',', 1 ) as first_name,
+SPLIT_PART(rejected_record, ',', 2 ) as last_name,
+SPLIT_PART(rejected_record, ',', 3 ) as email,
+SPLIT_PART(rejected_record, ',', 4 ) as streetaddress,
+SPLIT_PART(rejected_record, ',', 5 ) as city,
+SPLIT_PART(rejected_record, ',', 6 ) as start_date
+FROM DEMO_DB.PUBLIC.REJECTED_RECORDS;
