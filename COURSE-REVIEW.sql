@@ -1370,6 +1370,69 @@ file:///path/to/your/local/file/storage/that/will/receive/the/file;
 
 
 
+-- Before summarizing the Copy command and its features,
+-- it is good to review the use-case in which we do not 
+-- copy the data into Snowflake tables, but we use Snowflake
+-- to query the data from files, stored in External Stages (S3).
+-- With this approach, a lot of Snowflake's features are wasted.
+-- Some of these features are caching, the storing of metadata and 
+-- micropartitions. This approach should be used only if our data 
+-- in S3 is rarely queried (can be advantageous in cases where 
+-- you want to avoid the data storage costs in both Snowflake and S3).
+-- Also, if this approach is used, the "Query Profile" option will have 
+-- very few details about the query.
+
+
+
+
+-- Example of querying data from an External Stage directly, without copying into a table
+SELECT 
+T.$1 AS first_name,
+T.$2 AS last_name,
+T.$3 AS email
+FROM @CONTROL_DB.EXTERNAL_STAGES.S3_EXTERNAL_STAGE AS T;
+
+-- Querying while filtering
+SELECT
+T.$1 AS first_name,
+T.$2 AS last_name,
+T.$3 AS email 
+FROM @CONTROL_DB.EXTERNAL_STAGES.S3_EXTERNAL_STAGE AS T
+WHERE T.$1 IN ('Di', 'Carson', 'Dana');
+
+-- Querying while joining
+SELECT 
+T.$1 AS first_name,
+T.$2 AS last_name,
+T.$3 AS email
+FROM @CONTROL_DB.EXTERNAL_STAGES.S3_EXTERNAL_STAGE AS T
+INNER JOIN @CONTROL_DB.EXTERNAL_STAGES.S3_EXTERNAL_STAGE AS D
+ON T.$1=D.$1;
+
+-- You can also create views - when new files are added to your bucket, the view will "refresh" automatically (because it only saves the logic of the query, not the results)
+CREATE OR REPLACE VIEW DEMO_DB.PUBLIC.QUERY_FROM_S3 
+AS 
+SELECT
+T.$1 AS first_name,
+T.$2 AS last_name,
+T.$3 AS email 
+FROM @CONTROL_DB.EXTERNAL_STAGES.S3_EXTERNAL_STAGE AS T;
+
+-- You can also create a table from the bucket's files - However, when new files are eventually added to your bucket, this table won't be refreshed.
+CREATE OR REPLACE TABLE DEMO_DB.PUBLIC.QUERY_FROM_S3_TABLE
+AS 
+SELECT
+T.$1 AS first_name,
+T.$2 AS last_name,
+T.$3 AS email
+FROM @CONTROL_DB.EXTERNAL_STAGES.S3_EXTERNAL_STAGE AS T;
+
+
+
+
+
+
+
 
 
 
@@ -1535,6 +1598,8 @@ put 'file:///path/to/your/local/file/storage/that/will/upload/the/files/*'
 
 -- Describe Stage Object:
 DESC STAGE DEMO_DB.INTERNAL_STAGES.MY_INT_STAGE
+
+
 
 
 
