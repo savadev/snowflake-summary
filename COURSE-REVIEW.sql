@@ -1268,6 +1268,14 @@ CREATE OR REPLACE STORAGE INTEGRATION <integration_name>
     STORAGE_AWS_ROLE_ARN='arn:aws:iam::*******************:role/snowflake' -- a "snowflake" dedicated IAM user is needed, in AWS, to utilize this value
     STORAGE_ALLOWED_LOCATIONS=('<bucket-url>'); -- create bucket beforehand
 
+-- Alter Integration Object 
+ALTER STORAGE INTEGRATION S3_<integration_name>
+SET STORAGE_ALLOWED_LOCATIONS=(
+    's3://bucket-url/folder-1/',
+    's3://bucket-url/folder-2/',
+    's3://bucket-url/folder-3/'
+);
+
 -- Describe Integration Object (mandatory, as we need the STORAGE_AWS_EXTERNAL_ID and
 -- STORAGE_AWS_ROLE_ARN; we'll use this ID and this role in the AWS config, in IAM users/buckets, in "Trusted Relationships")
 DESC STORAGE INTEGRATION <integration_name>;
