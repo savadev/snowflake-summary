@@ -1050,6 +1050,8 @@ CREATE SCHEMA CONTROL_DB.PIPES;
 
 
 
+
+
 -- Load data - First Object Type - Stages 
 
 
@@ -1101,6 +1103,7 @@ CREATE SCHEMA CONTROL_DB.PIPES;
 -- to be copied into a single table.
 
 
+-- This type of Stage is automatically created and assigned to each corresponding table.
 
 
 -- They should be used when:
@@ -1160,17 +1163,90 @@ FILE_FORMAT=(
 
 
 
--- Create Internal Stage
+-- Create Internal, Named Stage
 CREATE OR REPLACE STAGE CONTROL_DB.INTERNAL_STAGES.MY_INT_STAGE;
 
 -- Create External Stage - insecure (no Integration Object)
 CREATE OR REPLACE STAGE CONTROL_DB.EXTERNAL_STAGES.MY_EXT_STAGE 
     url='s3://snowflake867/test/';
 
+-- Alter Stage Object
+ALTER STAGE CONTROL_DB.INTERNAL_STAGES.MY_INT_STAGE
+    SET FILE_FORMAT=(
+        TRIM_SPACE=TRUE
+    )
+    COPY_OPTIONS=(PURGE=TRUE); -- with "PURGE=TRUE", the files in our stage will be DELETED after a successful COPY operation.
+
+-- Drop Stages
+DROP STAGE CONTROL_DB.INTERNAL_STAGES.MY_INT_STAGE;
+DROP STAGE CONTROL_DB.INTERNAL_STAGES.MY_EXT_STAGE;
+
 -- Describe Stages' properties (location, database, schema, name, etc)
-DESC STAGE CONTROL_DB.INTERNAL_STAGE.MY_INT_STAGE;
-DESC STAGE CONTROL_DB.INTERNAL_STAGE.MY_EXT_STAGE;
+DESC STAGE CONTROL_DB.INTERNAL_STAGE.MY_INT_STAGE; -- "location" will be empty (as we are inside of snowflake)
+DESC STAGE CONTROL_DB.INTERNAL_STAGE.MY_EXT_STAGE; -- "location" will be your bucket's url.
 
 -- List files inside of stage
 LIST @CONTROL_DB.INTERNAL_STAGE.MY_INT_STAGE;
 LIST @CONTROL_DB.INTERNAL_STAGE.MY_EXT_STAGE;
+
+
+
+
+
+
+
+
+
+-- Load data - Second Object Type - File Formats
+
+
+-- Basic File Format Creation Syntax:
+
+
+-- Create CSV File Format
+ CREATE OR REPLACE FILE FORMAT CONTROL_DB.FILE_FORMATS.MY_CSV_FORMAT
+    TYPE=CSV,
+    FIELD_DELIMITER=',',
+    SKIP_HEADER=1,
+    NULL_IF=('NULL', 'null')
+    EMPTY_FIELD_AS_NULL=true
+    COMPRESSION=gzip; -- for files in ".csv.gzip" format
+
+
+-- Describe File Format Object's properties - many of them are also present in stage object, but we should always try to define properties'
+-- values in the File Format objects, and not stages (best practice - you should try not to write file_format argument inline, in copy command)
+DESC FILE FORMAT CONTROL_DB.FILE_FORMATS.MY_CSV_FORMAT;
+
+
+
+
+
+
+-- Using the Snowflake Web Console GUI, we can upload files, from our local machines,
+-- directly into our Snowflake tables; this practice is only recommended if you have up to 10k records.
+-- If we have more than that, the Snow CLI and its commands must be used.
+
+
+
+
+
+-- Example of Snow CLI usage, to upload files:
+
+
+-- Create Table (and, consequently, Table Stage)
+CREATE TABLE DEMO_DB.PUBLIC.EMP_BASIC (
+    FIELD_1 STRING,
+    FIELD_2 NUMBER,
+    FIELD_3 DATE
+);
+
+-- Upload file (.csv) from local storage to Snowflake Internal Stage (Table Stage), blob storage, using Snow CLI
+ PUT FILE:///root/Snowflake/Data/Employee/employees0*.csv -- local filesystem path
+ @DEMO_DB.PUBLIC.%EMP_BASIC; -- stage
+
+-- List files, now present in Table Stage's blob storage area
+LIST @DEMO_DB.PUBLIC.%EMP_BASIC; -- in worksheets
+ls @DEMO_DB.PUBLIC.%EMP_BASIC; -- in Snow CLI
+
+-- Select rows in EMP_BASIC Table (the result set will be empty, just like the table, as the files will still only exist in the Table Stage's blob storage)
+SELECT * FROM DEMO_DB.PUBLIC.EMP_BASIC LIMIT 100;
