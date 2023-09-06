@@ -2845,3 +2845,69 @@ ADD ACCOUNTS=<reader_account_url>;
 
 -- Create Database From Share - Consumer/Reader account
 CREATE DATABASE SHARED_DATABASE FROM SHARE <producer_account_id>.EXAMPLE_SHARE;
+
+
+
+
+
+
+
+-- MODULE 18 --
+
+
+
+
+
+
+
+-- Time Travel
+
+
+
+
+
+-- Exists in Permanent (1 to 90 days) and Transient Tables (1 day, max).
+
+
+
+
+-- There are two ways to restore the data of a table, using Time Travel,
+-- in disaster scenarios, one proper, other unproper.
+
+
+
+-- A) Unproper way, doing the restore with a single command, which will erase table's timeline:
+
+
+-- Restores table data to former state, before the mistake, but erases Table's timeline completely
+CREATE OR REPLACE TABLE DEMO_DB.PUBLIC.EMP_BASIC 
+AS 
+SELECT * FROM DEMO_DB.PUBLIC.EMP_BASIC BEFORE(statement => '<your-query-id>');
+
+
+
+
+-- For the proper way, there is more than one step. You must:
+
+-- 1) Create a Staging Table, of type 'Transient'
+
+-- 2) Copy (INSERT) the data of our table at the moment before the mistake, into that Staging Table
+
+-- 3) Truncate all the data of our current Permanent table (there is no problem in doing so; its timeline will still be in order, we can always go back)
+
+-- 4) Copy (INSERT) the data of our Staging Table (data before the mistake) into our current Permanent (production table), which will be empty, before 
+-- the copy.
+
+-- With the proper way, we maintain the timeline of the original (production, permanent) Table, and also restore all the damaged data.
+
+
+
+
+
+
+-- Basic Syntax:
+
+
+
+-- Get the state of your table 1 minute into the past
+SELECT * FROM EMP AT(offset => 60 * 1);
