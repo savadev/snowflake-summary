@@ -2108,4 +2108,162 @@ SELECT * FROM SNOWFLAKE.ACCOUNT_USAGE.COPY_HISTORY;
 
 
 
--- Load Unstructured Data -- 
+-- Load Unstructured Data (JSON, XML) -- 
+
+
+
+
+-- Basic Syntax:
+
+
+
+
+-- Create Raw Table - single column, data type "VARIANT"
+CREATE OR REPLACE DEMO_DB.PUBLIC.EMP_JSON_RAW (
+    V VARIANT
+);
+
+-- Inserting Raw Json data into tabl
+INSERT INTO DEMO_DB.PUBLIC.EMP_JSON_RAW
+SELECT 
+    PARSE_JSON(
+'{
+   "fullName":"Johnny Appleseed",
+   "age":42,
+   "gender":"Male",
+   "phoneNumber":{
+      "areaCode":"415",
+      "subscriberNumber":"5551234"
+   },
+   "children":[
+      {
+         "name":"Jayden",
+         "gender":"Male",
+         "age":"10"
+      },
+      {
+         "name":"Emma",
+         "gender":"Female",
+         "age":"8"
+      },
+      {
+         "name":"Madelyn",
+         "gender":"Female",
+         "age":"6"
+      }
+   ],
+   "citiesLived":[
+      {
+         "cityName":"London",
+         "yearsLived":[
+            "1989",
+            "1993",
+            "1998",
+            "2002"
+         ]
+      },
+      {
+         "cityName":"San Francisco",
+         "yearsLived":[
+            "1990",
+            "1993",
+            "1998",
+            "2008"
+         ]
+      },
+      {
+         "cityName":"Portland",
+         "yearsLived":[
+            "1993",
+            "1998",
+            "2003",
+            "2005"
+         ]
+      },
+      {
+         "cityName":"Austin",
+         "yearsLived":[
+            "1973",
+            "1998",
+            "2001",
+            "2005"
+         ]
+      }
+   ]
+}'
+    );
+
+-- Selecting key from variant column, without string transformation. Column value output: "Johnny Appleseed" (with quotes)
+SELECT v:fullName AS full_name 
+FROM DEMO_DB.PUBLIC.EMP_JSON_RAW;
+
+-- Selecting key from variant column, with string and number transformations. Column value output: Johnny Appleseed (no quotes), 42 (number), male (string)
+SELECT 
+v:fullName::string AS full_name,
+v:age::int AS age,
+v:gender::string AS gender
+FROM DEMO_DB.PUBLIC.EMP_JSON_RAW;
+
+-- Selecting nested data, inside variant colummn's json values:
+SELECT 
+v:phoneNumber.areaCode::string AS area_code,
+v:phoneNumber.subscriberNumber::string AS subscriber_number
+FROM DEMO_DB.PUBLIC.EMP_JSON_RAW;
+
+-- Selecting nested data, but one of the columns is not in our Json objects/values - Column value will appear as null, and no errors will be thrown (a good thing)
+SELECT 
+v:phoneNumber.areaCode::string AS area_code,
+v:phoneNumber.subscriberNumber::string AS subscriber_number,
+v:phoneNumber:extensionNumber::string AS extension_number -- this column doesn't exist in our current JSON data - its value will appear as NULL
+FROM DEMO_DB.PUBLIC.EMP_JSON_RAW;
+
+-- Produce one row for each child of the same parent - Be careful with this syntax, as the repetition of code can be bad, bad usage of UNION ALLs
+SELECT 
+v:fullName::string AS parent_name,
+v:children[0].name::string FROM DEMO_DB.PUBLIC.EMP_JSON_RAW
+UNION ALL
+SELECT
+v:fullName::string AS parent_name,
+v:children[1].name::string FROM DEMO_DB.PUBLIC.EMP_JSON_RAW
+UNION ALL 
+SELECT
+v:fullName::string AS parent_name,
+v:children[2].name::string FROM DEMO_DB.PUBLIC.EMP_JSON_RAW;
+
+-- To get the same output as the query seen above (but with less code), 
+-- we can use one of the most useful functions for unstructured data, "flatten()".
+-- OBS: This function must be used with a JOIN.
+SELECT 
+T:fullName::string AS parent_name,
+F.value:name::string AS child_name,
+F.value:gender::string AS child_gender,
+F.value::string AS child_age
+FROM DEMO_DB.PUBLIC.EMP_JSON_RAW AS T, TABLE(flatten(v:children)) AS F;
+
+-- To check how many elements exist in an array, we have "array_size()"
+SELECT 
+v:fullName::string AS parent_name,
+array_size(v:citiesLived) AS number_of_cities_lived_in,
+array_size(v:children) AS number_of_children
+FROM DEMO_DB.PUBLIC.EMP_JSON_RAW;
+
+-- Parse array within array
+SELECT 
+v:fullName::string AS parent_name,
+c1.value:cityName::string AS city_name,
+y1.value:string AS year_lived
+FROM DEMO_DB.PUBLIC.EMP_JSON_RAW
+TABLE(FLATTEN(v:citiesLived)) c1,  -- outer array 
+TABLE(FLATTEN(c1.value.yearsLived)) y1  -- inner array
+ORDER BY year_lived ASC;
+
+-- Parse array within array, while using aggregation
+SELECT 
+C1.value:cityName::string AS city_name,
+count(*) AS year_lived
+FROM DEMO_DB.PUBLIC.EMP_JSON_RAW
+TABLE(FLATTEN(v:citiesLived)) C1,
+TABLE(FLATTEN(c1.value:yearsLived)) Y1
+GROUP BY city_name;
+
+-- After we parsed this data, we can store it in other tables, formatted tables, and the like.
