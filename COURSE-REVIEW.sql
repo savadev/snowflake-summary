@@ -2535,3 +2535,149 @@ LATERAL FLATTEN(to_array(xml_demo.v:"$")) AS auction_announcement;
 "SECURITY TYPE"     "MATURITY DATE"          "OFFERING AMOUNT"      "MATURE SECURITY AMOUNT"
 
 "BILL"             "2008-10-09"            21                   650020000000000
+
+
+
+
+
+
+
+-- SECOND PART OF THE SUMMARY - SNOWFLAKE FEATURES -- 
+
+
+
+
+
+
+
+-- MODULE 16 - SNOWPIPE -- 
+
+
+
+
+
+-- The main purpose of pipes is "continuous"/automatic 
+-- data copying in your tables, data extracted from uploaded
+-- files.
+
+
+-- With Snowpipe, for every file appearing in your bucket,
+-- a notification is sent, by AWS S3, to the Snowpipe 
+-- Service (serverless) - once this serverless loader
+-- detects that notification, it will identify the 
+-- new files that were uploaded, and then will load 
+-- their contents into your Snowflake Table. Because 
+-- the service is serverless, you can't choose a warehouse 
+-- to run your pipe with (and the costs for the copy command 
+-- will depend on the duration and filesize of your operation)
+
+
+-- The Snowpipe/pipe objects are basically wrappers
+-- around "COPY" commands; they are special wrappers
+-- that constantly watch your S3 buckets, waiting for
+-- notifications to be thrown by AWS.
+
+
+-- For the Pipe to work, we must have prepared all 
+-- of the objects needed for a normal COPY command,
+-- which are:
+
+-- 1) Stage 
+
+-- 2) File Format (best practice)
+
+-- 3) Integration Object (Storage Integration)
+
+-- 4) The Table to COPY your data into
+
+
+
+-- After creating all these objects, we need to configure our 
+-- S3 bucket so that they really end up sending notifications 
+-- to our Pipes, whenever a new file is uploaded. Get the "notification_channel"
+-- value of your pipe, and then, in your bucket, do the following:
+
+-- 1) Click on properties 
+
+-- 2) Click on events 
+
+-- 3) Set all create/update/remove events
+
+-- 4) Choose "SQS Queue ARN"
+
+-- 5) Insert the "notification_channel" value of your desired pipe
+
+
+
+-- Basic Syntax:
+
+
+
+
+-- Create a Pipe to ingest JSON data
+CREATE OR REPLACE PIPE CONTROL_DB.PIPES.JSON_PIPE
+    AUTO_INGEST=TRUE -- default value
+    AS 
+    COPY INTO DEMO_DB.PUBLIC.EMP_BASIC -- COPY command, wrapped by the pipe.
+    FROM @CONTROL_DB.EXTERNAL_STAGES.MY_EXT_STAGE;
+
+-- Show all Pipes - Get the value of the "notification_channel" field, we need it for the SQS notification service, in our buckets.
+SHOW PIPES;
+
+
+-- Refresh pipe, to check what files got loaded
+ALTER PIPE SNOWPIPE_OBJECT REFRESH;
+
+
+
+
+-- Pipe behavior during error scenarios - Not very good:
+
+    -- A) Our errors don't get thrown to the console, nor are notified to us
+
+    -- B) Error message is generic
+
+    -- C) We have to check and validate Pipe object manually
+
+    -- D) Unlike normal COPY commands, COPYs that were run by Pipe objects won't appear in the "query_history" view
+
+    -- E) However, information about Pipe's COPY commands can be found with the "copy_history()" function, as seen in statement 3, shown below
+
+-- To check the error message during the execution of a given Pipe,
+-- we run these statements:
+
+
+-- 1) Check if pipe is running and if it has not errored-out
+SELECT SYSTEM$PIPE_STATUS('CONTROL_DB.PIPES.JSON_PIPE');
+
+-- Output:
+
+{
+    "executionState": "RUNNING",
+    "pendingFileCount": 0
+}
+
+-- 2) Check the specific error that was given, if we know the moment it occurred (we can't use the queryId, as it won't be registered)
+SELECT * FROM TABLE(
+    VALIDATE_PIPE_LOAD(
+        PIPE_NAME=>'CONTROL_DB.PIPES.JSON_PIPE'
+        START_TIME=>dateadd(hour, -4, current_timestamp())
+    )
+);
+
+-- Previous query's output (generic error message, not very useful):
+
+'Remote file was not found. There are several potential causes.
+The file might not exist. The required credentials may be 
+missing or invalid. If you are running a copy command,
+please make sure files are not deleted when they are 
+being loaded, or files are not being loaded into two 
+different tables concurrently with auto purge option'
+
+
+-- 3) Check info about the failed COPY command, with the "copy_history()" function (ACCOUNTADMIN needed):
+SELECT * 
+FROM TABLE(SNOWFLAKE.INFORMATION_SCHEMA.COPY_HISTORY(
+    table_name=>'<table_name>',
+    start_time=> dateadd(hours, -1, current_timestamp())
+));
