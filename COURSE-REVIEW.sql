@@ -2121,6 +2121,8 @@ SELECT * FROM SNOWFLAKE.ACCOUNT_USAGE.COPY_HISTORY;
 -- Select JSON data from External Stage, in a JSON file, without copying the file into a Snowflake Table:
 SELECT
 $1
+-- $1:"name"::string AS name, 
+-- $1:"age"::number AS age
 FROM @CONTROL_DB.EXTERNAL_STAGES.MY_EXT_STAGE/example.json
 (file_format=> @CONTROL_DB.FILE_FORMATS.JSON_FORMAT);
 
@@ -2130,7 +2132,7 @@ CREATE OR REPLACE TRANSIENT TABLE DEMO_DB.PUBLIC.EMP_JSON_RAW (
     V VARIANT
 );
 
--- Inserting Raw Json data into tabl
+-- Inserting Raw Json data into table
 INSERT INTO DEMO_DB.PUBLIC.EMP_JSON_RAW
 SELECT 
     PARSE_JSON(
@@ -2273,13 +2275,44 @@ TABLE(FLATTEN(v:citiesLived)) C1,
 TABLE(FLATTEN(c1.value:yearsLived)) Y1
 GROUP BY city_name;
 
--- After we parsed this data, we can store it in other tables, formatted tables, and the like.
+-- After we parse this data, we can store it in other tables, formatted tables, and the like.
+
+////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+-- Some approaches for unstructured data handling, worst to best:
+
+-- (worst)
+-- It is possible to use COPY INTO to load JSON data into Transient Tables with single columns of type "VARIANT" and keep querying
+-- data from these tables, but this practice is not recommended (can be slow when huge volumes of data are involved).
+-- Syntax:
+COPY INTO DEMO_DB.PUBLIC.EMP_JSON_RAW
+FROM 
+@CONTROL_DB.EXTERNAL_STAGES.MY_EXT_STAGE/example.json
+FILE_FORMAT=(
+    FORMAT_NAME=CONTROL_DB.FILE_FORMATS.JSON_FORMAT
+);
+
+
+-- (not so good)
+-- We can use Transient Tables with single columns, of type VARIANT, to receive our data from external stages.
+-- Afterwards, we can use that data, in that single column, in an INSERT INTO statement to another table, permanent
+-- and with proper columns. However, the problem in this approach is that if you receive any data type errors (value must be DATE,
+-- but is received as STRING) while attempting to insert the data, you won't be able to fetch the
+-- rejected records with the VALIDATE() function, as that function is restricted to the COPY command. 
+-- Syntax:
+INSERT INTO DEMO_DB.PUBLIC.EMP_BASIC -- permanent, final table
+SELECT 
+V:"name"::string AS NAME,
+V:"email"::string AS EMAIL,
+V:"age"::age AS AGE
+FROM DEMO_DB.PUBLIC.EMP_JSON_RAW AS V; -- Transient table
 
 
 
 
 
 
+////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 -- Select and Load XML Data, Basic Syntax:
 
@@ -2452,7 +2485,7 @@ SELECT XMLGET(V, 'AuctionAnnouncement', 0):"$" FROM DEMO_DB.PUBLIC.EMP_XML_RAW;
  {     "$": "",     "@": "AdjustedAccruedInterest"   } 
  ]
 
--- Formatting XML nodes, transforming them into a table (tabular data):
+-- Formatting XML nodes, transforming them into JSON, and then into a table (tabular data):
 SELECT 
 XMLGET(value, 'SecurityType'):"$" AS 'Security Type',
 XMLGET(value, 'MaturityDate'):"$" AS "Maturity Date",
