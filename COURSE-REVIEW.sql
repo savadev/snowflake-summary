@@ -2550,7 +2550,7 @@ LATERAL FLATTEN(to_array(xml_demo.v:"$")) AS auction_announcement;
 
 
 
--- MODULE 16 - SNOWPIPE -- 
+-- MODULE 16 - Snowpipe -- 
 
 
 
@@ -2713,3 +2713,92 @@ FROM TABLE(SNOWFLAKE.INFORMATION_SCHEMA.COPY_HISTORY(
     start_time=> dateadd(hours, -1, current_timestamp())
 ));
 
+
+
+
+
+
+-- MODULE 17 -- 
+
+
+
+
+
+-- Data Sharing
+
+
+
+
+
+-- With this feature, we can share data 
+-- from account X to account Y, and, at
+-- the same time, without spending on
+-- extra data storage and transfer costs.
+-- We do this with data shares, which are 
+-- objects used to share Snowflake metadata 
+-- of user X with another users.
+
+-- With Data Shares, account Y will be able 
+-- to query the data of account X, but the 
+-- compute costs/processing of that querying
+-- will be associated to account Y, and not account X.
+
+-- Furthermore, account Y will have only read-access
+-- to the objects provided by account X, not being 
+-- able to UPDATE, DELETE nor DROP tables.
+
+-- It is also not possible to clone Shared tables.
+
+-- OBS: only Secure Views can be provided to 
+-- consumer accounts. Regular views are prohibited.
+
+
+
+-- To use this feature, we need:
+
+-- 1) Two accounts, the Producer and the Consumer 
+
+-- 2) To create a Data Share Object, in the Producer account
+
+-- 3) Set the "Grants", the permissions, on the Share Object, in the Producer account
+
+-- 4) Add a user to this Share object, in the Producer account
+
+-- 5) To create a Table from the shared Data Share Object, in the consumer account
+
+
+-- The Syntax is:
+
+
+-- Create a share object (data sharing) - Producer
+CREATE OR REPLACE SHARE EXAMPLE_SHARE;
+
+-- Set permissions on Share object - Producer
+GRANT USAGE ON DATABASE DEMO_DB TO SHARE EXAMPLE_SHARE;
+GRANT USAGE ON SCHEMA DEMO_DB.PUBLIC TO SHARE EXAMPLE_SHARE;
+GRANT SELECT ON TABLE DEMO_DB.PUBLIC.EMP_BASIC TO SHARE EXAMPLE_SHARE;
+
+-- Check if grants were given to Share object - Producer 
+SHOW GRANTS TO SHARE EXAMPLE_SHARE;
+
+-- Add consumer account to newly created Share object - Producer
+ALTER SHARE EXAMPLE_SHARE
+ADD ACCOUNTS=<account_id>
+
+-- Drop Share 
+DROP SHARE EXAMPLE_SHARE;
+
+-- Show all Shares, in Consumer account
+DESC SHARE <producer_account>.ORDERS_SHARE;
+
+-- Create Secure View, to be shared with Share object
+CREATE OR REPLACE SECURE VIEW DEMO_DB.PUBLIC.EMP_BASIC_S_VIEW
+AS SELECT first_name, last_name, email
+FROM DEMO_DB.PUBLIC.EMP_BASIC;
+
+
+-- Create a database in Consumer account, using the Share object.
+CREATE DATABASE DATA_S FROM SHARE <producer_account>.EXAMPLE_SHARE;
+
+-- Validate table access (uses compute from account B, and queries from account A)
+SELECT * FROM DATA_S.PUBLIC.DEMO_DB;
