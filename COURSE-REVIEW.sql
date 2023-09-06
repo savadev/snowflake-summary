@@ -1227,10 +1227,15 @@ SHOW STAGES;
     TYPE=CSV,
     FIELD_DELIMITER=',',
     SKIP_HEADER=1,
-    NULL_IF=('NULL', 'null')
+    NULL_IF=('NULL', 'null', '\\N')
  -- EMPTY_FIELD_AS_NULL=true
  -- FIELD_OPTIONALLY_ENCLOSED_BY='"'
  -- ERROR_ON_COLUMN_COUNT_MISMATCH=TRUE
+ -- TRIM_SPACE = FALSE
+ -- ESCAPE = 'NONE' 
+--  ESCAPE_UNENCLOSED_FIELD = '\134'
+--  DATE_FORMAT = 'AUTO' 
+--  TIMESTAMP_FORMAT = 'AUTO' 
     COMPRESSION=gzip; -- for files in ".csv.gzip" format
 
 
