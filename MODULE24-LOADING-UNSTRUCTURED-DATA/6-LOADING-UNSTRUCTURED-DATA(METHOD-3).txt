@@ -859,7 +859,7 @@ COPY INTO @DEMO_DB.PUBLIC.%BOOK_JSON_DATA  --- copy into internal table staging 
     $1:"type"::array AS TYPE
     FROM @MY_S3_UNLOAD_STAGE/dblp.json
     (FILE_FORMAT => JSON_FORMAT)
-    )
+    );
 
 
 

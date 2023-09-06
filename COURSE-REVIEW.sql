@@ -1300,6 +1300,9 @@ SET STORAGE_ALLOWED_LOCATIONS=(
 -- STORAGE_AWS_ROLE_ARN; we'll use this ID and this role in the AWS config, in IAM users/buckets, in "Trusted Relationships")
 DESC STORAGE INTEGRATION <integration_name>;
 
+-- Show all Storage Integrations
+SHOW STORAGE INTEGRATIONS;
+
 -- Integration Object fields:
 property	                    property_type	property_value	            property_default
 ENABLED	                        Boolean	            true	                    false
@@ -2043,6 +2046,8 @@ then returns results based on the validation option specified."
 
 -- The default behavior, for this option, is "ABORT_STATEMENT".
 
+-- This option DOESN'T WORK if you are copying unstructured data (JSON, XML)
+
 -- If you are building data pipelines, this option must always 
 -- be set as 'CONTINUE', to avoid breaking the pipeline's execution.
 
@@ -2281,7 +2286,7 @@ GROUP BY city_name;
 
 -- Some approaches for unstructured data handling, worst to best:
 
--- (worst)
+-- 1 - (worst)
 -- It is possible to use COPY INTO to load JSON data into Transient Tables with single columns of type "VARIANT" and keep querying
 -- data from these tables, but this practice is not recommended (can be slow when huge volumes of data are involved).
 -- Syntax:
@@ -2293,7 +2298,7 @@ FILE_FORMAT=(
 );
 
 
--- (not so good)
+-- 2 - (good, but not the best)
 -- We can use Transient Tables with single columns, of type VARIANT, to receive our data from external stages.
 -- Afterwards, we can use that data, in that single column, in an INSERT INTO statement to another table, permanent
 -- and with proper columns. However, the problem in this approach is that if you receive any data type errors (value must be DATE,
@@ -2307,10 +2312,39 @@ V:"email"::string AS EMAIL,
 V:"age"::age AS AGE
 FROM DEMO_DB.PUBLIC.EMP_JSON_RAW AS V; -- Transient table
 
+-- 3 - (best approach possible) - only drawback is the storage in Snowflake Internal Stage and AWS at the same time, until you delete the files in your Internal Stage
+-- To have the error handling provided by the COPY command, we must:
+
+-- 1) Parse JSON data directly from AWS S3 External Stage (with a SELECT)
+
+-- 2) Copy that parsed data into Snowflake Named Stage/Table Stage Area (data will be transformed into CSV format, inside of Internal Stages)
+
+-- 3) Finally, we COPY INTO our permanent table the csv data that is now living in our Internal Stage (Named/Table)
+
+-- Syntax/queries:
 
 
+-- Steps 1 and 2 (combined into a single statement):
+COPY INTO @DEMO_DB.PUBLIC.%EMP_BASIC  --- copy into internal table staging area.
+    FROM (
+    SELECT   -- parse data from aws s3 location.
+    V:"name"::string AS NAME,
+    V:"email"::string AS EMAIL,
+    V:"age"::age AS AGE
+    FROM @CONTROL_DB.EXTERNAL_STAGES.MY_EXT_STAGE/example.json
+    (FILE_FORMAT => CONTROL_DB.FILE_FORMATS.JSON_FORMAT)
+    );
 
+-- Check if .csv files, our data, is in the Internal Stage
+LIST @DEMO_DB.PUBLIC.%EMP_BASIC;
 
+-- Step 3 - Now we get to benefit from the "ON_ERROR='CONTINUE'" copy option, and COPY command's error handling (like the "validate()" function).
+COPY INTO DEMO_DB.PUBLIC.EMP_BASIC
+FROM @DEMO_DB.PUBLIC.%EMP_BASIC
+FILE_FORMAT=(
+    FORMAT_NAME=CONTROL_DB.FILE_FORMATS.CSV_FORMAT
+    )
+ON_ERROR='CONTINUE';
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////
 
