@@ -2577,6 +2577,12 @@ LATERAL FLATTEN(to_array(xml_demo.v:"$")) AS auction_announcement;
 -- that constantly watch your S3 buckets, waiting for
 -- notifications to be thrown by AWS.
 
+-- The best practice is to have a single pipe per AWS bucket.
+
+-- If you want to alter the COPY command written 
+-- into a Pipe, you need to actually recreate 
+-- the pipe, as you can't alter it directly.
+
 
 -- For the Pipe to work, we must have prepared all 
 -- of the objects needed for a normal COPY command,
@@ -2626,8 +2632,25 @@ SHOW PIPES;
 
 
 -- Refresh pipe, to check what files got loaded
-ALTER PIPE SNOWPIPE_OBJECT REFRESH;
+ALTER PIPE CONTROL_DB.PIPES.JSON_PIPE REFRESH;
 
+-- Recreate pipe. Used in cases in which we want to alter the COPY command in its body.
+CREATE OR REPLACE PIPE CONTROL_DB.PIPES.JSON_PIPE
+AUTO_INGEST=TRUE 
+AS 
+COPY INTO DEMO_DB.PUBLIC.EMP_BASIC
+FROM @CONTROL_DB.EXTERNAL_STAGES.MY_EXT_STAGE
+FILE_FORMAT=(
+    FORMAT_NAME=CONTROL_DB.FILE_FORMATS.CSV_FORMAT
+);
+
+-- However, even if we refresh pipe, the old metadata will still be in it. We can check this, with the refresh statement
+ALTER PIPE CONTROL_DB.PIPES.JSON_PIPE REFRESH;
+
+-- If we want to re-upload a file to AWS and have its contents copied into a Snowflake Table, we must drop our Pipe first, and only then recreate it (this will clear 
+-- its metadata):
+    DROP PIPE CONTROL_DB.PIPES.JSON_PIPE;
+    CREATE PIPE CONTROL_DB.PIPES.JSON_PIPE <...>;
 
 
 
@@ -2681,3 +2704,4 @@ FROM TABLE(SNOWFLAKE.INFORMATION_SCHEMA.COPY_HISTORY(
     table_name=>'<table_name>',
     start_time=> dateadd(hours, -1, current_timestamp())
 ));
+
