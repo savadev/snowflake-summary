@@ -2749,8 +2749,10 @@ FROM TABLE(SNOWFLAKE.INFORMATION_SCHEMA.COPY_HISTORY(
 
 -- It is also not possible to clone Shared tables.
 
--- OBS: only Secure Views can be provided to 
--- consumer accounts. Regular views are prohibited.
+-- OBS: only Secure Views (views that have their SQL text/definition field hidden/blank) can be provided to 
+-- consumer accounts. Regular views are prohibited. 
+
+-- Always remember that Secure Views are a little slower than regular views; this is more noticeable with bigger tables.
 
 
 
@@ -2767,7 +2769,7 @@ FROM TABLE(SNOWFLAKE.INFORMATION_SCHEMA.COPY_HISTORY(
 -- 5) To create a Table from the shared Data Share Object, in the consumer account
 
 
--- The Syntax is:
+-- The Syntax for creating Shares is:
 
 
 -- Create a share object (data sharing) - Producer
@@ -2789,16 +2791,57 @@ ADD ACCOUNTS=<account_id>
 DROP SHARE EXAMPLE_SHARE;
 
 -- Show all Shares, in Consumer account
-DESC SHARE <producer_account>.ORDERS_SHARE;
+DESC SHARE <producer_account>.EXAMPLE_SHARE;
 
--- Create Secure View, to be shared with Share object
+-- Show Grants to our Share
+SHOW GRANTS TO SHARE EXAMPLE_SHARE;
+
+-- Create Secure View, to be shared with Share object (sharinng normal views is not allowed)
 CREATE OR REPLACE SECURE VIEW DEMO_DB.PUBLIC.EMP_BASIC_S_VIEW
 AS SELECT first_name, last_name, email
 FROM DEMO_DB.PUBLIC.EMP_BASIC;
 
+-- Alters a View, transforms it into a Secure View (so it can be used with Data Shares)
+ALTER VIEW <view_name> SET SECURE;
 
 -- Create a database in Consumer account, using the Share object.
 CREATE DATABASE DATA_S FROM SHARE <producer_account>.EXAMPLE_SHARE;
 
 -- Validate table access (uses compute from account B, and queries from account A)
 SELECT * FROM DATA_S.PUBLIC.DEMO_DB;
+
+
+
+
+
+-- If you want to share your tables with someone/
+-- something that does not have a Snowflake account,
+-- you can create a Snowflake account inside of your
+-- account, with read-only access. This type of account 
+-- is called "Reader" or "Managed" accounts. The difference,
+-- with Reader accounts, is that all processing done by them,
+-- usage of warehouses, is billed to their "parent" account,
+-- the account that created them.
+
+-- Because this will be a "separate account", inside of your main
+-- one, you should create warehouses and roles inside it, to be used 
+-- with it (nevertheless, the billing will still be sent to your parent 
+-- account).
+
+-- Reader accounts, as the name suggests, are very limited: no DML operations 
+-- are permitted, only SELECTS and the creation of empty tables/simple snowflake objects; 
+-- operations with these objects, themselves, are not permitted.
+
+
+-- Create Reader/Managed Account, inside your Snowflake Account - You should copy the value "accountUrl", because it will be used later - Producer Account
+CREATE MANAGED ACCOUNT audiencelab_helper_account 
+ADMIN_NAME=audiencelab_admin,
+ADMIN_PASSWORD='audiencelab_admin_@456',
+TYPE=READER;
+
+-- Add Reader Account to Share - insert the "accountUrl" in the placeholder field - Producer Account
+ALTER SHARE EXAMPLE_SHARE
+ADD ACCOUNTS=<reader_account_url>;
+
+-- Create Database From Share - Consumer/Reader account
+CREATE DATABASE SHARED_DATABASE FROM SHARE <producer_account_id>.EXAMPLE_SHARE;
