@@ -1249,6 +1249,14 @@ ALTER FILE FORMAT CONTROL_DB.FILE_FORMATS.MY_CSV_FORMAT
     SET TYPE='PARQUET',
     SNAPPY_COMPRESSION=TRUE;
 
+-- Alter File Format - Example 3
+ALTER FILE FORMAT CONTROL_DB.FILE_FORMATS.MY_CSV_FORMAT
+    SET TYPE='XML';
+
+-- Alter File Format - Example 4
+ALTER FILE FORMAT CONTROL_DB.FILE_FORMATS.MY_CSV_FORMAT
+    SET TYPE='AVRO';
+
 -- Describe File Format Object's properties - many of them are also present in stage object, but we should always try to define properties'
 -- values in the File Format objects, and not stages (best practice - you should try not to write file_format argument inline, in copy command)
 DESC FILE FORMAT CONTROL_DB.FILE_FORMATS.MY_CSV_FORMAT;
@@ -2088,3 +2096,16 @@ SELECT * FROM TABLE(DEMO_DB.INFORMATION_SCHEMA.COPY_HISTORY(TABLE_NAME=>'EMP_BAS
     -- To use the "COPY_HISTORY" account-level view, we write:
 
 SELECT * FROM SNOWFLAKE.ACCOUNT_USAGE.COPY_HISTORY;
+
+
+
+
+
+
+
+
+-- MODULE 15 -- 
+
+
+
+-- Load Unstructured Data -- 
