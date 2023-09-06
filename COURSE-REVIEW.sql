@@ -1228,7 +1228,9 @@ SHOW STAGES;
     FIELD_DELIMITER=',',
     SKIP_HEADER=1,
     NULL_IF=('NULL', 'null')
-    EMPTY_FIELD_AS_NULL=true
+ -- EMPTY_FIELD_AS_NULL=true
+ -- FIELD_OPTIONALLY_ENCLOSED_BY='"'
+ -- ERROR_ON_COLUMN_COUNT_MISMATCH=TRUE
     COMPRESSION=gzip; -- for files in ".csv.gzip" format
 
 
@@ -1464,10 +1466,19 @@ FROM @CONTROL_DB.EXTERNAL_STAGES.S3_EXTERNAL_STAGE AS T;
 -- avoid the creation of duplicate rows in our tables. To bypass this behavior, if needed, 
 -- we must set the option "FORCE=TRUE" in our COPY commands.
 
+-- Before copying a file into one of your tables, create a sample of your file (10-100 rows), and test 
+-- the copy command with it (for that purpose, Named Stages/Table Stages can be used, along with 
+-- the Snow CLI and "put" command).
+
 -- Always use a dedicated warehouse (size Large is good enough, for most cases)
 -- to load/unload your data, as the process must not be stopped once it is started.
 
+-- Before copying your files, if they are huge (multiple GB), always split them into smaller
+-- chunks, first. If you copy a lot of 10mb files, the copy speed will be much faster than 
+-- with a 10gb file.
+
 -- .gzip files are supported in copy commands, but .zip files aren't. (must be unzipped, first).
+
 
 
 -- Copying into Snowflake tables from S3 External Stage, examples:
@@ -1623,12 +1634,22 @@ DESC STAGE DEMO_DB.INTERNAL_STAGES.MY_INT_STAGE
 -- The inverse way ("unload" of data), copying/transferring data from Snowflake tables to Stages (Internal, External), examples:
 
 
--- Copy data from Snowflake table (tabular data) into Table Stage (csv files, parquet data, json, etc)...
+-- Copy data from Snowflake Table (tabular data) into Table Stage (csv files, parquet data, json, etc)...
 COPY INTO @DEMO_DB.PUBLIC.%EMP_BASIC
 FROM DEMO_DB.PUBLIC.EMP_BASIC
 FILE_FORMAT=(
     FORMAT_NAME=CONTROL_DB.FILE_FORMATS.CSV_FORMAT
 );
+
+-- Copy (unload) data from Snowflake Table into Table Stage, in .json format outputted files.
+COPY INTO @DEMO_DB.PUBLIC.%EMP_BASIC
+FROM 
+(
+    SELECT object_construct(*) FROM DEMO_DB.PUBLIC.EMP_BASIC
+)
+FILE_FORMAT=(
+TYPE=JSON
+    );
 
 -- Copy only some columns of your table into Table Stage
 COPY INTO @DEMO_DB.PUBLIC.%EMP_BASIC
@@ -1645,12 +1666,19 @@ FILE_FORMAT=(
 -- OVERWRITE=TRUE; -- used if you want to replace a file that is already living in the stage area.
 
 
+-- Count rows copied into Table Stage's files - compare with number of rows in your Snowflake Table
+SELECT COUNT(*) FROM @DEMO_DB.PUBLIC.%EMP_BASIC;
+
+
 -- Downloads the files to your local system, in csv/json/parquet format; these are the files now residing 
 -- in the  Table Staging Area. This command can only be used inside Snow CLI (does not work in worksheets)
 GET @DEMO_DB.PUBLIC.%EMP_BASIC
 file:///path/to/your/local/file/storage/that/will/receive/the/file;
 
-
+-- After downloading the files, remove them from Table Stage area, to save costs
+rm @DEMO_DB.PUBLIC.%EMP_BASIC; -- in Snow CLI
+REMOVE @DEMO_DB.PUBLIC.%EMP_BASIC; -- in Worksheets
+ 
 
 
 
@@ -1688,6 +1716,27 @@ CREATE OR REPLACE TRANSIENT TABLE DEMO_DB.PUBLIC.EMP_BASIC (
     START_DATE DATE
 );
 
+-- Transform values during copy (with 'iff()'), to avoid errors
+COPY INTO TAXI_DRIVE FROM
+(
+SELECT 
+T.$1,
+T.$2,
+iff(T.$3='', null, T.$3), -- in a given row, if the value found in the third column is '', convert it to null; otherwise, maintain it as the same value.
+iff(T.$4='', null, T.$4), -- in a given row, if the value found in the fourth column is '', convert it to null; otherwise, maintain it as the same value.
+T.$5,
+T.$6,
+T.$7,
+T.$8,
+T.$9
+FROM @DEMO_DB.PUBLIC.%TAXI_DRIVE AS T
+)
+    FILE_FORMAT=(
+        FORMAT_NAME='CSV_FORMAT'
+        field_optionally_enclosed_by='"'
+    )
+ON_ERROR='CONTINUE';
+
 -- Continue copying, even with errors ("PARTIALLY LOADED")
 COPY INTO DEMO_DB.PUBLIC.EMP_BASIC
 FROM (
@@ -1702,10 +1751,10 @@ FROM (
 )
 ON_ERROR='CONTINUE';
 
--- Use "VALIDATE()" function, to show which records errored-out during the copy
+-- Use "VALIDATE()" function, to show which records errored-out during the copy - "column_name" shows the column that caused the error.
 SELECT * FROM TABLE(VALIDATE(DEMO_DB.PUBLIC.EMP_BASIC, JOB_ID => <your_query_id>));
 
--- Create a table, "REJECTED_RECORDS" with the format 'error_message - rejected record'
+-- Create a table, "REJECTED_RECORDS" with the format 'error_message - rejected record'.
 CREATE OR REPLACE TABLE DEMO_DB.PUBLIC.REJECTED_RECORDS 
 AS 
 SELECT * FROM TABLE(VALIDATE(DEMO_DB.PUBLIC.EMP_BASIC, JOB_ID => <your_query_id>));
