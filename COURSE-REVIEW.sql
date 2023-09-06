@@ -2113,13 +2113,20 @@ SELECT * FROM SNOWFLAKE.ACCOUNT_USAGE.COPY_HISTORY;
 
 
 
--- Basic Syntax:
+-- Select and Load JSON Data, Basic Syntax:
 
 
+
+
+-- Select JSON data from External Stage, in a JSON file, without copying the file into a Snowflake Table:
+SELECT
+$1
+FROM @CONTROL_DB.EXTERNAL_STAGES.MY_EXT_STAGE/example.json
+(file_format=> @CONTROL_DB.FILE_FORMATS.JSON_FORMAT);
 
 
 -- Create Raw Table - single column, data type "VARIANT"
-CREATE OR REPLACE DEMO_DB.PUBLIC.EMP_JSON_RAW (
+CREATE OR REPLACE TRANSIENT TABLE DEMO_DB.PUBLIC.EMP_JSON_RAW (
     V VARIANT
 );
 
@@ -2267,3 +2274,197 @@ TABLE(FLATTEN(c1.value:yearsLived)) Y1
 GROUP BY city_name;
 
 -- After we parsed this data, we can store it in other tables, formatted tables, and the like.
+
+
+
+
+
+
+
+-- Select and Load XML Data, Basic Syntax:
+
+
+
+-- Create Raw Table - single column, data type "VARIANT"
+CREATE OR REPLACE TRANSIENT TABLE DEMO_DB.PUBLIC.EMP_XML_RAW (
+    V VARIANT
+);
+
+-- Insert XML Data into Variant Column
+INSERT INTO DEMO_DB.PUBLIC.EMP_XML_RAW
+SELECT
+PARSE_XML('<bpd:AuctionData xmlns:bpd="http://www.treasurydirect.gov/" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://www.treasurydirect.gov/ http://www.treasurydirect.gov/xsd/Auction_v1_0_0.xsd">
+<AuctionAnnouncement>
+<SecurityTermWeekYear>26-WEEK</SecurityTermWeekYear>
+<SecurityTermDayMonth>182-DAY</SecurityTermDayMonth>
+<SecurityType>BILL</SecurityType>
+<CUSIP>912795G96</CUSIP>
+<AnnouncementDate>2008-04-03</AnnouncementDate>
+<AuctionDate>2008-04-07</AuctionDate>
+<IssueDate>2008-04-10</IssueDate>
+<MaturityDate>2008-10-09</MaturityDate>
+<OfferingAmount>21.0</OfferingAmount>
+<CompetitiveTenderAccepted>Y</CompetitiveTenderAccepted>
+<NonCompetitiveTenderAccepted>Y</NonCompetitiveTenderAccepted>
+<TreasuryDirectTenderAccepted>Y</TreasuryDirectTenderAccepted>
+<AllTenderAccepted>Y</AllTenderAccepted>
+<TypeOfAuction>SINGLE PRICE</TypeOfAuction>
+<CompetitiveClosingTime>13:00</CompetitiveClosingTime>
+<NonCompetitiveClosingTime>12:00</NonCompetitiveClosingTime>
+<NetLongPositionReport>7350000000.0</NetLongPositionReport>
+<MaxAward>7350000000</MaxAward>
+<MaxSingleBid>7350000000</MaxSingleBid>
+<CompetitiveBidDecimals>3</CompetitiveBidDecimals>
+<CompetitiveBidIncrement>0.005</CompetitiveBidIncrement>
+<AllocationPercentageDecimals>2</AllocationPercentageDecimals>
+<MinBidAmount>100</MinBidAmount>
+<MultiplesToBid>100</MultiplesToBid>
+<MinToIssue>100</MinToIssue>
+<MultiplesToIssue>100</MultiplesToIssue>
+<MatureSecurityAmount>65002000000.0</MatureSecurityAmount>
+<CurrentlyOutstanding/>
+<SOMAIncluded>N</SOMAIncluded>
+<SOMAHoldings>11511000000.0</SOMAHoldings>
+<FIMAIncluded>Y</FIMAIncluded>
+<Series/>
+<InterestRate/>
+<FirstInterestPaymentDate/>
+<StandardInterestPayment/>
+<FrequencyInterestPayment>NONE</FrequencyInterestPayment>
+<StrippableIndicator/>
+<MinStripAmount/>
+<CorpusCUSIP/>
+<TINTCUSIP1/>
+<TINTCUSIP2/>
+<ReOpeningIndicator>N</ReOpeningIndicator>
+<OriginalIssueDate/>
+<BackDated/>
+<BackDatedDate/>
+<LongShortNormalCoupon/>
+<LongShortCouponFirstIntPmt/>
+<Callable/>
+<CallDate/>
+<InflationIndexSecurity>N</InflationIndexSecurity>
+<RefCPIDatedDate/>
+<IndexRatioOnIssueDate/>
+<CPIBasePeriod/>
+<TIINConversionFactor/>
+<AccruedInterest/>
+<DatedDate/>
+<AnnouncedCUSIP/>
+<UnadjustedPrice/>
+<UnadjustedAccruedInterest/>
+<ScheduledPurchasesInTD>772000000.0</ScheduledPurchasesInTD>
+<AnnouncementPDFName>A_20080403_1.pdf</AnnouncementPDFName>
+<OriginalDatedDate/>
+<AdjustedAmountCurrentlyOutstanding/>
+<NLPExclusionAmount>0.0</NLPExclusionAmount>
+<MaximumNonCompAward>5000000.0</MaximumNonCompAward>
+<AdjustedAccruedInterest/>
+</AuctionAnnouncement>
+</bpd:AuctionData>');
+
+
+-- RootNode - in this example, it is "bpd:AuctionData"
+
+
+-- Select RootNode's value
+SELECT V:"@" FROM DEMO_DB.PUBLIC.EMP_XML_RAW;
+
+-- Select all "Root Elements" (sub-nodes below the rootNode. In this case, "AuctionAnnouncement" and all its sub-nodes)
+SELECT V:"$" FROM DEMO_DB.PUBLIC.EMP_XML_RAW;
+
+-- Same output as the above query, but more versatile approach
+SELECT XMLGET(V, 'AuctionAnnouncement', 0) FROM DEMO_DB.PUBLIC.EMP_XML_RAW;
+
+-- Output XML nodes as key-value pairs in a JSON object (with ":$" syntax)
+SELECT XMLGET(V, 'AuctionAnnouncement', 0):"$" FROM DEMO_DB.PUBLIC.EMP_XML_RAW;
+
+-- outputted JSON ("@" for each node element, "$" for each node's value):
+
+
+ [   
+ {     "$": "26-WEEK",     "@": "SecurityTermWeekYear"   },
+ {     "$": "182-DAY",     "@": "SecurityTermDayMonth"   },  
+ {     "$": "BILL",     "@": "SecurityType"   },
+ {     "$": "912795G96",     "@": "CUSIP"   },   
+ {     "$": "2008-04-03",     "@": "AnnouncementDate"   },   
+ {     "$": "2008-04-07",     "@": "AuctionDate"   },   
+ {     "$": "2008-04-10",     "@": "IssueDate"   },   
+ {     "$": "2008-10-09",     "@": "MaturityDate"   },   
+ {     "$": 21,     "@": "OfferingAmount"   },   
+ {     "$": "Y",     "@": "CompetitiveTenderAccepted"   },  
+ {     "$": "Y",     "@": "NonCompetitiveTenderAccepted"   },   
+ {     "$": "Y",     "@": "TreasuryDirectTenderAccepted"   },   
+ {     "$": "Y",     "@": "AllTenderAccepted"   },   
+ {     "$": "SINGLE PRICE",     "@": "TypeOfAuction"   },   
+ {     "$": "13:00",     "@": "CompetitiveClosingTime"   },   
+ {     "$": "12:00",     "@": "NonCompetitiveClosingTime"   },   
+ {     "$": 7350000000,     "@": "NetLongPositionReport"   },   
+ {     "$": 7350000000,     "@": "MaxAward"   },   
+ {     "$": 7350000000,     "@": "MaxSingleBid"   },   
+ {     "$": 3,     "@": "CompetitiveBidDecimals"   },   
+ {     "$": 0.005,     "@": "CompetitiveBidIncrement"   },   
+ {     "$": 2,     "@": "AllocationPercentageDecimals"   },   
+ {     "$": 100,     "@": "MinBidAmount"   },   
+ {     "$": 100,     "@": "MultiplesToBid"   },   
+ {     "$": 100,     "@": "MinToIssue"   },   
+ {     "$": 100,     "@": "MultiplesToIssue"   },   
+ {     "$": 65002000000,     "@": "MatureSecurityAmount"   },   
+ {     "$": "",     "@": "CurrentlyOutstanding"   },   
+ {     "$": "N",     "@": "SOMAIncluded"   },  
+ {     "$": 11511000000,     "@": "SOMAHoldings"   },   
+ {     "$": "Y",     "@": "FIMAIncluded"   },   
+ {     "$": "",     "@": "Series"   },   
+ {     "$": "",     "@": "InterestRate"   },   
+ {     "$": "",     "@": "FirstInterestPaymentDate"   },   
+ {     "$": "",     "@": "StandardInterestPayment"   },  
+ {     "$": "NONE",     "@": "FrequencyInterestPayment"   },  
+ {     "$": "",     "@": "StrippableIndicator"   },   
+ {     "$": "",     "@": "MinStripAmount"   },  
+ {     "$": "",     "@": "CorpusCUSIP"   },   
+ {     "$": "",     "@": "TINTCUSIP1"   },   
+ {     "$": "",     "@": "TINTCUSIP2"   },   
+ {     "$": "N",     "@": "ReOpeningIndicator"   }, 
+ {     "$": "",     "@": "OriginalIssueDate"   },  
+ {     "$": "",     "@": "BackDated"   },   
+ {     "$": "",     "@": "BackDatedDate"   },   
+ {     "$": "",     "@": "LongShortNormalCoupon"   },  
+ {     "$": "",     "@": "LongShortCouponFirstIntPmt"   },   
+ {     "$": "",     "@": "Callable"   },   
+ {     "$": "",     "@": "CallDate"   },   
+ {     "$": "N",     "@": "InflationIndexSecurity"   },  
+ {     "$": "",     "@": "RefCPIDatedDate"   },  
+ {     "$": "",     "@": "IndexRatioOnIssueDate"   }, 
+ {     "$": "",     "@": "CPIBasePeriod"   },   
+ {     "$": "",     "@": "TIINConversionFactor"   }, 
+ {     "$": "",     "@": "AccruedInterest"   },  
+ {     "$": "",     "@": "DatedDate"   },  
+ {     "$": "",     "@": "AnnouncedCUSIP"   },   
+ {     "$": "",     "@": "UnadjustedPrice"   },   
+ {     "$": "",     "@": "UnadjustedAccruedInterest"   },   
+ {     "$": 772000000,     "@": "ScheduledPurchasesInTD"   }, 
+ {     "$": "A_20080403_1.pdf",     "@": "AnnouncementPDFName"   },  
+ {     "$": "",     "@": "OriginalDatedDate"   },   
+ {     "$": "",     "@": "AdjustedAmountCurrentlyOutstanding"   },   
+ {     "$": 0,     "@": "NLPExclusionAmount"   },   
+ {     "$": 5000000,     "@": "MaximumNonCompAward"   }, 
+ {     "$": "",     "@": "AdjustedAccruedInterest"   } 
+ ]
+
+-- Formatting XML nodes, transforming them into a table (tabular data):
+SELECT 
+XMLGET(value, 'SecurityType'):"$" AS 'Security Type',
+XMLGET(value, 'MaturityDate'):"$" AS "Maturity Date",
+XMLGET(value, 'OfferingAmount'):"$" AS 'Offering Amount',
+XMLGET(value, 'MatureSecurityAmount'):"$" AS 'Mature Security Amount'
+FROM DEMO_DB.PUBLIC.EMP_XML_RAW,
+LATERAL FLATTEN(to_array(xml_demo.v:"$")) AS auction_announcement;
+
+
+-- Outputted table format:
+
+
+"SECURITY TYPE"     "MATURITY DATE"          "OFFERING AMOUNT"      "MATURE SECURITY AMOUNT"
+
+"BILL"             "2008-10-09"            21                   650020000000000

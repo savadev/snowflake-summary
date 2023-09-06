@@ -52,9 +52,9 @@ CREATE OR REPLACE TABLE XML_DEMO (v variant);
 
 
 
-insert into xml_demo
-select
-parse_xml('<bpd:AuctionData xmlns:bpd="http://www.treasurydirect.gov/" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://www.treasurydirect.gov/ http://www.treasurydirect.gov/xsd/Auction_v1_0_0.xsd">
+INSERT INTO xml_demo
+SELECT
+PARSE_XML('<bpd:AuctionData xmlns:bpd="http://www.treasurydirect.gov/" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://www.treasurydirect.gov/ http://www.treasurydirect.gov/xsd/Auction_v1_0_0.xsd">
 <AuctionAnnouncement>
 <SecurityTermWeekYear>26-WEEK</SecurityTermWeekYear>
 <SecurityTermDayMonth>182-DAY</SecurityTermDayMonth>
@@ -123,7 +123,7 @@ parse_xml('<bpd:AuctionData xmlns:bpd="http://www.treasurydirect.gov/" xmlns:xsi
 <MaximumNonCompAward>5000000.0</MaximumNonCompAward>
 <AdjustedAccruedInterest/>
 </AuctionAnnouncement>
-</bpd:AuctionData>')
+</bpd:AuctionData>');
 
 
 
