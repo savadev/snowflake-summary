@@ -2575,7 +2575,15 @@ LATERAL FLATTEN(to_array(xml_demo.v:"$")) AS auction_announcement;
 -- The Snowpipe/pipe objects are basically wrappers
 -- around "COPY" commands; they are special wrappers
 -- that constantly watch your S3 buckets, waiting for
--- notifications to be thrown by AWS.
+-- notifications to be thrown by AWS. However, running 
+-- COPY commands directly is better in bulk-load scenarios,
+-- more reliable.
+
+-- Pipes also have a "repeated-data block" feature, like
+-- the COPY command. Unlike the standalone COPY command, 
+-- however, the Pipes compare only the filenames of your files,
+-- and not their md5 hash values, before deciding whether to
+-- block the copy operation to avoid repeated rows.
 
 -- The best practice is to have a single pipe per AWS bucket.
 
