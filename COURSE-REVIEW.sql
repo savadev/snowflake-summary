@@ -1924,6 +1924,10 @@ WHERE department='employees03' -- usage of partitions
 -- 9) The auto-refresh feature now will be activated.
 
 
+-- OBS: There is also a "PARTITION_TYPE='USER_SPECIFIED'" option, that should be used in cases where the 
+-- substr() + metadata$filename syntax is not enough to partition your external table. The use-case for 
+-- this advanced syntax is typically scenarios where our data is already present in AWS S3, divided in subfolders.
+-- More details about it can be viewed in this Repo's Module 18, lesson 7 (Manual Partitions).
 
 
 
@@ -1988,13 +1992,45 @@ SELECT * FROM TABLE(VALIDATE(DEMO_DB.PUBLIC.EMP_BASIC, JOB_ID => <your_query_id>
 
 
 
--- 4) ENFORCE_LENGTH and TRUNCATECOLUMNS
+-- 4) ENFORCE_LENGTH and TRUNCATECOLUMNS - ENFORCE_LENGTH (default value is TRUE) throws an error, in your COPY command, if the value inserted is too long for a given column.
+--                                         TRUNCATECOLUMNS (default value is FALSE) truncates the values you insert, if they do not fit the given column.
 
 
--- 5) FORCE
+-- 5) FORCE - (default value is FALSE) Forces the copying of your files into your tables, even if those files have already been 
+--    copied before (will generate duplicate rows in your tables, identical data).
 
 
--- 6) PURGE
+-- 6) PURGE - (default value is FALSE) Deletes files present in your staging area (both Internal and External), after a successful COPY. Use with care.
 
 
--- 7) LOAD_HISTORY (view) and COPY_HISTORY (function)
+-- 7) LOAD_HISTORY (view) - with this information schema view, you are able to retrieve the history of data loaded into tables 
+--    using the COPY INTO <table>  command. The view displays one row for each file loaded. This historical data, of each COPY command you run, is maintained 
+--    for 14 days. However, this view has a limitation: it can only display up to 10.000 rows. If we want to bypass this limit, we must use the "copy_history()" function.
+
+    -- To visualize this view, we run:
+
+-- View Load History for all tables (ACCOUNTADMIN needed) - "COPY INTO" historical data is kept for 14 days.
+SELECT * FROM SNOWFLAKE.INFORMATION_SCHEMA.LOAD_HISTORY
+    ORDER BY last_load_time DESC;
+
+-- View Load History for a given database
+SELECT * FROM DEMO_DB.INFORMATION_SCHEMA.LOAD_HISTORY
+    ORDER BY last_load_time DESC;
+
+-- View Load History for all tables (ACCOUNTADMIN needed) - This view is special. Here, the "COPY INTO" historical data is kept for 365 days.
+SELECT * FROM SNOWFLAKE.ACCOUNT_USAGE.LOAD_HISTORY;
+
+
+-- 8) COPY_HISTORY (function) - Similar to the LOAD_HISTORY view, but provides more information (details about file size and stage location)
+--    and has no limit of 10.000 rows. There's also a 'COPY_HISTORY' view, account-level, that provides historical data of up to 365 days.
+
+    -- To run this function, we write:
+
+-- Visualize "COPY INTO" history for a given table.
+SELECT * FROM TABLE(DEMO_DB.INFORMATION_SCHEMA.COPY_HISTORY(TABLE_NAME=>'EMP_BASIC', START_TIME=>DATEADD(hours, -42, CURRENT_TIMESTAMP())));
+-- WHERE error_count > 0;
+
+
+    -- To use the "COPY_HISTORY" account-level view, we write:
+
+SELECT * FROM SNOWFLAKE.ACCOUNT_USAGE.COPY_HISTORY;
