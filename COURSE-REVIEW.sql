@@ -3177,3 +3177,129 @@ SET first_name='Dummy';
 -- Swap Development Table metadata with Production Table metadata (Prod Table's data will move to Dev Table)
 ALTER TABLE DEMO_DB.PUBLIC.EMP_PROD 
 SWAP WITH DEMO_DB.PUBLIC.EMP_DEV;
+
+
+
+
+
+
+
+
+
+-- MODULE 21 -- 
+
+
+
+
+
+
+
+
+-- Sampling
+
+
+
+
+
+
+
+
+
+
+-- During development activity, we'll run many queries
+-- to get information about our tables' structure and 
+-- data distribution. If we insist on running our test/analytical
+-- queries on top of our entire tables, we'll:
+
+-- 1) Spend a lot of compute resources unecessarily 
+
+-- 2) Be forced to wait a long time for the queries to finish
+
+
+
+-- That's why it's a good idea to create samples of our 
+-- main tables, so we can run these test queries on smaller 
+-- subsets of data. If our queries run satisfactorily in 
+-- these smaller subsets, we can eventually test them 
+-- on the main tables, as well.
+
+-- Sampling reduces development cost, development lifecycle,
+-- and can lead to up to 80% precision in your tests, when 
+-- compared to the testing on top of the real table.
+
+-- The creation of samples is better than the creation of 
+-- clones on top of your main tables, because with samples
+-- we save compute power and storage costs (we won't run our 
+-- tests on top of the original table, like we do with the clones).
+
+-- We have two ways to create a sample from a table, in 
+-- Snowflake, Bernoulli (row-based) and System (block-based).
+-- Both have different use-cases.
+
+-- In both sampling methods, we can define "seeds". These are used 
+-- to replicate sampling results along repeated runs, so we can share
+-- these results among colleagues (ex: "I got x result in this test, the
+-- seed was 349, take a look at it as well.")
+
+
+
+
+-- Bernoulli (row) method:
+
+-- We define "p" as the chance, out of a 100%, of each 
+-- row of being selected and compiled in the final sample.
+-- A value of p of 10, in a table of 1 million, for example, 
+-- would produce a final sample of 100.000 rows.
+
+-- Advantage: It's more random, the produced sample is 
+-- more realistic/real than the one produced by the System 
+-- method.
+
+-- Disadvantage: It's more processing intensive, as it runs 
+-- for each row. It also takes more time to finish creating 
+-- the sample, even more so in huge tables.
+
+
+-- Ideal use-case: small to medium-sized tables.
+
+
+-- Example Syntax:
+
+
+-- Create a sample from a table, using row method - here, the p was defined as '3' (3%), and the seed as 82.
+CREATE OR REPLACE TRANSIENT TABLE DEMO_DB.PUBLIC.EMP_BASIC_R_SAMPLE
+AS 
+SELECT * FROM DEMO_DB.PUBLIC.EMP_BASIC SAMPLE ROW(3) SEED (82);
+
+
+
+
+
+-- System (Block) method:
+
+-- Before the sampling starts, Snowflake fractions your 
+-- table in multiple blocks. We define "p" as the chance,
+-- out of a 100%, of each block of being selected 
+-- and compiled in the final sample. As row numbers in each block vary,
+-- our samples won't produce exact percentage results like the 
+-- ones seen on the Bernoulli method. A value of p of 10, in a
+-- table of 1 million, for example, would produce a
+-- final sample of 95k-110k rows.
+
+-- Advantage: Its sampling process is cheaper and faster
+-- than the one produced by the Bernoulli method.
+
+-- Disadvantage: It's less realistic than the Bernoulli method.
+
+
+-- Ideal use-case: huge tables.
+
+
+
+-- Example Syntax:
+
+
+-- Create a sample from a table, using system method - here, the p was defined as '3' (3%), and the seed as 52.
+CREATE OR REPLACE TRANSIENT TABLE DEMO_DB.PUBLIC.EMP_BASIC_S_SAMPLE
+AS 
+SELECT * FROM DEMO_DB.PUBLIC.EMP_BASIC SAMPLE SYSTEM(3) SEED (52);
