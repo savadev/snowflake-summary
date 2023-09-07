@@ -44,6 +44,39 @@ SELECT * FROM TABLE(INFORMATION_SCHEMA.WAREHOUSE_METERING_HISTORY(DATEADD('SEC',
 SELECT * FROM TABLE(INFORMATION_SCHEMA.WAREHOUSE_METERING_HISTORY(CURRENT_DATE()));
 
 
+-- General Cost Monitoring queries (ACCOUNTADMIN needed):
+
+
+
+-- Table storage
+SELECT * FROM SNOWFLAKE.ACCOUNT_USAGE.TABLE_STORAGE_METRICS;
+
+-- How much is queried in databases 
+SELECT COUNT(*) FROM SNOWFLAKE.ACCOUNT_USAGE.QUERY_HISTORY;
+
+-- View how many queries and how much credits are associated to each database
+SELECT 
+    DATABASE_NAME,
+    COUNT(*) AS NUMBER_OF_QUERIES,
+    SUM(CREDITS_USED_CLOUD_SERVICES)
+FROM SNOWFLAKE.ACCOUNT_USAGE.QUERY_HISTORY
+GROUP BY DATABASE_NAME;
+
+-- Usage of credits by warehouses // Grouped by warehouse
+SELECT
+WAREHOUSE_NAME,
+SUM(CREDITS_USED)
+FROM SNOWFLAKE.ACCOUNT_USAGE.WAREHOUSE_METERING_HISTORY
+GROUP BY WAREHOUSE_NAME;
+
+-- Usage of credits by warehouses // Grouped by warehouse & day
+SELECT
+DATE(START_TIME),
+WAREHOUSE_NAME,
+SUM(CREDITS_USED)
+FROM SNOWFLAKE.ACCOUNT_USAGE.WAREHOUSE_METERING_HISTORY
+GROUP BY WAREHOUSE_NAME,DATE(START_TIME);
+
 
 
 
@@ -2923,6 +2956,9 @@ SELECT * FROM DEMO_DB.PUBLIC.EMP_BASIC BEFORE(statement => '<your-query-id>');
 -- Basic Syntax:
 
 
+-- Shows you how much bytes are being used with Time Travel (TIME_TRAVEL_BYTES) and Fail-safe (FAILSAFE_BYTES), compared to your actual storage (ACTIVE_BYTES)
+SELECT * FROM <database_name>.INFORMATION_SCHEMA.TABLE_STORAGE_METRICS;
+
 -- Alter Retention Period of your Table (possible with Transient and Permanent tables)
 ALTER TABLE DEMO_DB.PUBLIC.EMP_BASIC_PERMANENT
 SET DATA_RETENTION_TIME_IN_DAYS=45; -- max is 90
@@ -2978,9 +3014,40 @@ UNDROP DATABASE DEMO_DB;
 
 
 
+-- This feature doesn't exist in Transient and Temporary tables.
+
+-- Fail-safe is a "continuous backup" of your data, done 
+-- after the chosen retention period of your table ends (1-90 days). 
+-- Fail-safe zone is the 7-day period after the retention period of your tables,
+-- where the backup of your data will be kept. Fail-safe is not configurable, 
+-- and is always present in Permanent Tables.
+
+-- If we create our tables as Permanent and then set their retention period 
+-- to 0 (Time Travel disabled), we'll have only Fail-Safe enabled. This means 
+-- that every one of our changes to the table will be sent to the Fail-safe zone,
+-- directly. 
+
+-- Data in the Fail-safe zone will be kept (and use storage) for 7 days.
+
+-- The difference between Fail-safe and Time Travel is that Time Travel
+-- can be managed by us (with commands, queries, etc); Fail-safe, on the other 
+-- hand, can only be manipulated by the Snowflake team, which will attempt 
+-- to recover our damaged data, service provided on a "best effort basis", 
+-- and totally case-by-case.
+
+-- As the costs with Fail-safe can quickly stack up, developers, when testing 
+-- features, should create and use Transient Objects (like whole databases),
+-- to avoid the Fail-safe cost produced by Permanent Objects. This is a best 
+-- practice because developers will be constantly creating and dropping tables,
+-- which will generate those unwanted Fail-safe bytes. Less important Tables, 
+-- in your system, should also be maintained as Transient Tables.
+
+-- Staging tables should always be created as Transient Tables, as well.
 
 
 
--- This feature backups your data, after the chosen retention period 
--- of your table ends (1-90 days). Fail-safe zone is the 7-day period
--- after the retention period of your tables, where 
+-- Useful commands, to check Fail-safe usage:
+
+
+-- Shows you how much bytes are being used with Time Travel (TIME_TRAVEL_BYTES) and Fail-safe (FAILSAFE_BYTES), compared to your actual storage (ACTIVE_BYTES)
+SELECT * FROM <database_name>.INFORMATION_SCHEMA.TABLE_STORAGE_METRICS;
