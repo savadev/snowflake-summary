@@ -3114,3 +3114,66 @@ CLONE DEMO_DB.PUBLIC.EMP_BASIC;
 CREATE TABLE DEMO_DB.PUBLIC.EMP_BASIC_TIME_TRAVELER_CLONE
 CLONE DEMO_DB.PUBLIC.EMP_BASIC
 BEFORE (TIMESTAMP => <timestamp>);
+
+-- Proof that Originals and Clones are independent (CLONE_GROUP_ID is the same in both objects, as the Clone inherits metadaata from the Original, but the "ID" itself, in both of them, is different)
+SELECT * FROM DEMO_DB.INFORMATION_SCHEMA.TABLE_STORAGE_METRICS
+WHERE TABLE_NAME LIKE 'EMP_BASIC';
+
+
+
+-- Another useful feature, if somewhat niche, is the SWAP command.
+-- It allows us to swap the metadata of two different tables,
+-- essentially/effectively swapping the storage/data inside of them.
+
+-- We use this in use-cases where we want to replace the data in 
+-- our production table with the data of our development table (like 
+-- in scenarios where the data in our production table is wrong/old and the 
+-- data in our development table is correct/updated).
+
+-- With this feature, we can safely move the data/metadata from the Production Table 
+-- to the Development Table, where it can be safely stored. The data/metadata from 
+-- the Development Table is then put into the Production Table, where it can be promptly 
+-- used.
+
+
+
+
+
+-- Example Syntax:
+
+-- Create Development Table
+CREATE OR REPLACE TABLE DEMO_DB.PUBLIC.EMP_DEV (
+    first_name string,
+    last_name string,
+    email string,
+    streetaddress string,
+    city string,
+    start_date date
+);
+
+-- Development Table receives/ends up with correct data:
+COPY INTO EMP_DEV 
+FROM @CONTROL_DB.EXTERNAL_STAGES.MY_EXT_STAGE
+FILE_FORMAT=(
+    FORMAT_NAME=CONTROL_DB.FILE_FORMATS.CSV_FORMAT
+)
+ON_ERROR='CONTINUE';
+
+
+-- Create Production Table 
+CREATE OR REPLACE TABLE DEMO_DB.PUBLIC.EMP_PROD (
+    first_name string,
+    last_name string,
+    email string,
+    streetaddress string,
+    city string,
+    start_date date
+);
+
+-- Wrong operation - Mistake is made - all rows with invalid value 
+UPDATE DEMO_DB.PUBLIC.EMP_PROD 
+SET first_name='Dummy';
+
+-- Swap Development Table metadata with Production Table metadata (Prod Table's data will move to Dev Table)
+ALTER TABLE DEMO_DB.PUBLIC.EMP_PROD 
+SWAP WITH DEMO_DB.PUBLIC.EMP_DEV;
