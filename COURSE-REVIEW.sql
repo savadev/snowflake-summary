@@ -3049,5 +3049,9 @@ UNDROP DATABASE DEMO_DB;
 -- Useful commands, to check Fail-safe usage:
 
 
+
+-- Table storage
+SELECT * FROM SNOWFLAKE.ACCOUNT_USAGE.TABLE_STORAGE_METRICS;
+
 -- Shows you how much bytes are being used with Time Travel (TIME_TRAVEL_BYTES) and Fail-safe (FAILSAFE_BYTES), compared to your actual storage (ACTIVE_BYTES)
 SELECT * FROM <database_name>.INFORMATION_SCHEMA.TABLE_STORAGE_METRICS;
