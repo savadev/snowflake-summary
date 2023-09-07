@@ -577,7 +577,10 @@ SELECT SYSTEM$CLUSTERING_INFORMATION('CUSTOMER_ORDER_BY_EXAMPLE', '(C_MKTSEGMENT
 -- instead of increasing the warehouse size (ex: from LARGE to XLARGE), as the costs will be much cheaper. This is 
 -- also better than creating multiple warehouses (ex: multiple large warehouses) to do the same type of job/workload.
 
-
+-- 6) If we are updating our data, it is always better to run the UPDATES on our staging tables (incremental data, 
+--    smaller record collection), as the processing costs and time will be reduced, when compared to updating that data/
+--    records in the main/production Table (where there's a huge data set, and time/processing will be high, to update only a few 
+--    records, out of millions of records).
 
 
 
@@ -2783,7 +2786,11 @@ FROM TABLE(SNOWFLAKE.INFORMATION_SCHEMA.COPY_HISTORY(
 -- to the objects provided by account X, not being 
 -- able to UPDATE, DELETE nor DROP tables.
 
--- It is also not possible to clone Shared tables.
+-- It is also not possible to clone Shared tables, nor temporary Tables.
+
+-- If a customer wants to take a look into our main table, for whatever reason,
+-- we can provide access to a Clone of the main table, instead of providing access
+-- directly to it (not a good idea).
 
 -- OBS: only Secure Views (views that have their SQL text/definition field hidden/blank) can be provided to 
 -- consumer accounts. Regular views are prohibited. 
@@ -3183,6 +3190,22 @@ SWAP WITH DEMO_DB.PUBLIC.EMP_DEV;
 
 
 
+
+
+
+-- Additionaly, the SWAP feature allows us to very smartly undo mistakes/errors in our
+-- tables. The steps are:
+
+
+-- 1) Create a clone of the Production table, the table that has the problem.
+
+-- 2) Afterwards, we fix the error in that Clone table (that, at the moment, is equal to the Production Table)
+
+-- 3) Lastly, to apply your fix on the current Production Table, you simply run a "SWAP WITH" between the
+--    Production table and that "Patched-Production" (Clone) table, swapping their metadata sets.
+
+-- 4) With this, the "errored-out" data of the Production Table will be kept inside the previous clone table,
+--    and the fixed data of the Production table will now live inside of the actual Production Table.
 
 
 
@@ -3630,9 +3653,6 @@ APPEND_ONLY=TRUE;
 
 
 
-
-
-
 -- The Changes Clause 
 
 
@@ -3682,3 +3702,16 @@ AT(TIMESTAMP => <your_timestamp>);
 SELECT * FROM SALES_RAW 
 CHANGES(information => append_only)
 AT(timestamp => 'your-timestamp'::timestamp_tz);
+
+
+
+
+
+
+
+
+
+-- Example - SCD (Slowly Changing Dimensions) Type 1 - Streams combined with Tasks
+
+
+
