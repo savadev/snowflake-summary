@@ -2971,7 +2971,7 @@ ALTER TABLE DEMO_DB.PUBLIC.EMP_BASIC_PERMANENT
 SET DATA_RETENTION_TIME_IN_DAYS=0;
 
 -- Get the state of your table 1 minute into the past
-SELECT * FROM DEMO_DB.PUBLIC.EMP_BASIC AT(offset => 60 * 1);
+SELECT * FROM DEMO_DB.PUBLIC.EMP_BASIC AT(offset => -60 * 1);
 
 -- Get the state of your table, AT a given moment, using timestamps
 SELECT * FROM DEMO_DB.PUBLIC.EMP_BASIC AT(TIMESTAMP => 'Mon, 01 May 2015 16:20:00 -0700'::TIMESTAMP);
@@ -3055,3 +3055,62 @@ SELECT * FROM SNOWFLAKE.ACCOUNT_USAGE.TABLE_STORAGE_METRICS;
 
 -- Shows you how much bytes are being used with Time Travel (TIME_TRAVEL_BYTES) and Fail-safe (FAILSAFE_BYTES), compared to your actual storage (ACTIVE_BYTES)
 SELECT * FROM <database_name>.INFORMATION_SCHEMA.TABLE_STORAGE_METRICS;
+
+
+
+
+
+
+
+
+-- MODULE 20 -- 
+
+
+
+
+
+
+
+-- Cloning
+
+
+
+
+
+-- With cloning, we copy only the metadata of the original table,
+-- saving costs with data transferring and storage (the original table's 
+-- data/storage location is used). Costs will be generated only if we 
+-- update/change the clone, with new data/operations.
+
+-- Even though both tables, the original and the clone, point to the 
+-- same "original location", both will be completely independent 
+-- of each other, meaning that if we update/change the data in one 
+-- of the objects, the other one won't be affected.
+
+-- As we are copying the metadata of the original table, a lot 
+-- of things will be copied, such as the table's timeline, clustering keys,
+-- comments, etc. 
+
+-- We can also combine Cloning with other features, like Time Travel,
+-- to create clones of our original table, at certain moments in the past.
+
+-- The objects that can be cloned are Databases,
+-- Schemas, Tables, Stages, File Formats and Tasks.
+
+
+
+
+
+
+-- Example Syntax:
+
+
+
+-- Create clone of original table (creating a copy of its metadata)
+CREATE TABLE DEMO_DB.PUBLIC.EMP_BASIC_CLONE
+CLONE DEMO_DB.PUBLIC.EMP_BASIC;
+
+-- Combine Cloning and Time Travel
+CREATE TABLE DEMO_DB.PUBLIC.EMP_BASIC_TIME_TRAVELER_CLONE
+CLONE DEMO_DB.PUBLIC.EMP_BASIC
+BEFORE (TIMESTAMP => <timestamp>);
