@@ -3547,7 +3547,8 @@ ALTER TASK CONTROL_DB.TASKS.TASK_7 SUSPEND;
 -- Table" can be the same table where you are applying changes, or another table
 -- entirely.
 
-
+-- The best thing we can do, with Streams, is combine them with Tasks to 
+-- create custom ETL workflows, to consume their data automatically
 
 
 
@@ -3574,7 +3575,7 @@ CREATE OR REPLACE TABLE DEMO_DB.PUBLIC.MEMBERS_DEV (
     FEE NUMBER(3) NULL
 );
 
--- Create a Stream Object to track changes to members table
+-- Create a Standard Stream Object to track changes to members table
 CREATE OR REPLACE STREAM CONTROL_DB.STREAMS.MEMBER_CHECK ON TABLE DEMO_DB.PUBLIC.MEMBERS_DEV;
 
 -- Insert data (changes) into members table
@@ -3587,7 +3588,7 @@ VALUES
 (5, 'Sally', 0);
 
 -- Check Stream Object's data captures:
-SELECT * FROM CONTROLDB.STREAMS.MEMBER_CHECK;
+SELECT * FROM CONTROL_DB.STREAMS.MEMBER_CHECK;
 
 -- Output Format:
 ID	NAME	FEE	        METADATA$ACTION	        METADATA$ISUPDATE	    METADATA$ROW_ID
@@ -3604,7 +3605,17 @@ CREATE OR REPLACE TABLE DEMO_DB.PUBLIC.MEMBERS_PROD (
     FEE NUMBER(3) NULL
 );
 
--- Consume Stream Data (records in the Stream Object will cease to exist)
+-- Consume Stream Data (records in the Stream Object will cease to exist), applying changes to a Prod Table
 INSERT INTO DEMO_DB.PUBLIC.MEMBERS_PROD(id, name, fee) 
 SELECT ID, NAME, FEE 
 FROM CONTROL_DB.STREAMS.MEMBER_CHECK;
+
+-- Our Streams will always, by default, point to the most recent offset, but we can create a Stream positioned at 
+-- a different offset (time), with the Time Travel syntax.
+CREATE STREAM CONTROL_DB.STREAMS.MEMBER_CHECK ON TABLE DEMO_DB.PUBLIC.EMP_BASIC BEFORE (TIMESTAMP => TO_TIMESTAMP(40*365*86400));
+CREATE STREAM CONTROL_DB.STREAMS.MEMBER_CHECK ON TABLE DEMO_DB.PUBLIC.EMP_BASIC BEFORE (offset=> 60*5);
+CREATE STREAM CONTROL_DB.STREAMS.MEMBER_CHECK ON TABLE DEMO_DB.PUBLIC.EMP_BASIC BEFORE (statement => <query_id>);
+
+-- Create Append-only Stream on source table (will capture only INSERT operations on table. Update and Delete-related operations won't be captured)
+CREATE OR REPLACE STREAM CONTROL_DB.STREAMS.MEMBERS_CHECK_APPEND_ONLY ON TABLE DEMO_DB.PUBLIC.MEMBERS_DEV
+APPEND_ONLY=TRUE;
