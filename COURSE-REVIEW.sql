@@ -1082,6 +1082,7 @@ CREATE SCHEMA CONTROL_DB.FILE_FORMATS;
 CREATE SCHEMA CONTROL_DB.MASKING_POLICIES;
 CREATE SCHEMA CONTROL_DB.PIPES;
 CREATE SCHEMA CONTROL_DB.TASKS;
+CREATE SCHEMA CONTROL_DB.STREAMS;
 
 
 
@@ -3484,3 +3485,52 @@ ALTER TASK CONTROL_DB.TASKS.TASK_4 SUSPEND;
 ALTER TASK CONTROL_DB.TASKS.TASK_5 SUSPEND;
 ALTER TASK CONTROL_DB.TASKS.TASK_6 SUSPEND;
 ALTER TASK CONTROL_DB.TASKS.TASK_7 SUSPEND;
+
+
+
+
+
+
+
+
+-- MODULE 23 --
+
+
+
+
+
+-- Streams 
+
+
+
+
+
+
+
+
+-- The Stream Object's purpose is to capture 
+-- whatever changes are applied to a given table (CDC,
+-- Change Data Capture). They are always created on 
+-- top of existing tables.
+
+-- It records data manipulation language (DML) 
+-- changes made to tables, including INSERTS,
+-- UPDATES, DELETES, as well as metadata about each change,
+-- so that actions can be taken using the changed data.
+
+-- Note that a stream itself does not contain any table data. 
+-- A stream only stores the offset for the source table (3 metadata columns),
+-- and returns CDC (Change Data Capture) records by leveraging the 
+-- versioning history of the source table.
+
+-- Whenever a Stream Object's "change record" is used, it 
+-- is consumed, and ceases to exist.
+
+
+
+-- There are two kinds of Stream object:
+
+    -- 1) Standard - Captures INSERTS, UPDATES AND DELETES
+
+
+    -- 2) Append-only - Captures only INSERTS.
