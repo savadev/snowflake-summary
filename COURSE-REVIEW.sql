@@ -1081,6 +1081,7 @@ CREATE SCHEMA CONTROL_DB.INTEGRATION_OBJECTS; -- Storage integration objects
 CREATE SCHEMA CONTROL_DB.FILE_FORMATS;
 CREATE SCHEMA CONTROL_DB.MASKING_POLICIES;
 CREATE SCHEMA CONTROL_DB.PIPES;
+CREATE SCHEMA CONTROL_DB.TASKS;
 
 
 
@@ -3320,3 +3321,166 @@ SELECT * FROM DEMO_DB.PUBLIC.EMP_BASIC SAMPLE SYSTEM(3) SEED (52);
 
 
 
+
+
+
+-- In Snowflake, tasks are used to schedule query execution.
+-- We can create simple trees of tasks to execute queries, by 
+-- creating dependencies between them.
+
+-- Tasks can be combined with Table Streams (Stream Object) to 
+-- create continuous ETL workflows, to always process recently 
+-- changed table rows.
+
+-- To define a task, we need to specify the Warehouse in which 
+-- its attached query will be executed. Also, always be aware of
+-- the fact that a task can only execute a single SQL statement.
+
+-- The shortest interval you can set between executions of a given 
+-- task is 1 minute.
+
+-- Tasks can be suspended and resumed, with the ALTER TASK command.
+
+-- When a task is created, it will always be set as "SUSPENDED". To 
+-- make it start working, we need the ALTER TASK command, to resume it.
+
+
+
+-- Example Syntax:
+
+
+
+
+
+-- Create Task (will be suspended, at first) - first option - Schedule by "Time" string definition
+CREATE OR REPLACE CONTROL_DB.TASKS.EMP_BASIC_TASK
+    WAREHOUSE = COMPUTE_WH 
+    SCHEDULE='1 MINUTE' -- shortest amount of time possible between runs 
+AS 
+INSERT INTO DEMO_DB.PUBLIC.EMP_BASIC (timestamp) VALUES (CURRENT_TIMESTAMP);
+
+-- Create Task (will be suspended, at first) - second option - Schedule by "CRON" string definition
+CREATE OR REPLACE CONTROL_DB.TASKS.EMP_BASIC_TASK
+    WAREHOUSE = COMPUTE_WH 
+    SCHEDULE='USING CRON 0 9-17 * * SUN America/Los_Angeles' -- MHDMD - MINUTE HOUR DAY OF THE MONTH MONTH OF THE YEAR DAY OF THE WEEK
+AS 
+INSERT INTO DEMO_DB.PUBLIC.EMP_BASIC (timestamp) VALUES (CURRENT_TIMESTAMP);
+
+-- Resume suspended task (like newly created ones)
+ALTER TASK CONTROL_DB.TASKS.EMP_BASIC_TASK RESUME;
+
+-- Suspend resumed task
+ALTER TASK CONTROL_DB.TASKS.EMP_BASIC_TASK SUSPEND;
+
+-- Shows which tasks are scheduled in our system
+SHOW TASKS;
+
+-- Check Task History - Each entry shows us the reason for errors, if any has occurred.
+SELECT * FROM TABLE(SNOWFLAKE.INFORMATION_SCHEMA.TASK_HISTORY())
+ORDER BY SCHEDULED_TIME;
+
+
+
+
+-- Task trees/dependency:
+
+--         ROOT TASK
+--        ---- [] ----
+--        i          i 
+--        i          i 
+--     TASK A      TASK B 
+--     I   I       I    i
+-- TASK C  TASK D  E     F 
+
+
+
+
+-- Each task can have as many child tasks as needed,
+-- but can have only a single parent task related to itself.
+
+-- To start a tree of tasks, the child tasks must be resumed first,
+-- and the parent tasks must be resumed last.
+
+-- To suspend a tree of tasks, the root task/parent task must be suspended first,
+-- and the child tasks must be suspended last.
+
+
+
+
+
+-- Example Syntax:
+
+
+
+
+-- Create root (parent) task - created in suspended state
+CREATE TASK CONTROL_DB.TASKS.ROOT_TASK
+    WAREHOUSE = COMPUTE_WH
+    SCHEDULE='1 MINUTE'
+AS INSERT INTO DEMO_DB.PUBLIC.EMP_BASIC SELECT '1';
+
+-- Create child task n1
+CREATE TASK CONTROL_DB.TASKS.TASK_2
+    WAREHOUSE = COMPUTE_WH
+AFTER ROOT_TASK
+AS INSERT INTO DEMO_DB.PUBLIC.EMP_BASIC_2 SELECT '2';
+
+-- Create child task n2
+CREATE TASK CONTROL_DB.TASKS.TASK_3
+    WAREHOUSE = COMPUTE_WH
+AFTER CONTROL_DB.TASKS.TASK_2
+AS INSERT INTO DEMO_DB.PUBLIC.EMP_BASIC_3 SELECT '3';
+
+-- Create child task n3
+CREATE CONTROL_DB.TASKS.TASK_4
+    WAREHOUSE = COMPUTE_WH
+AFTER CONTROL_DB.TASKS.TASK_3
+AS INSERT INTO DEMO_DB.PUBLIC.EMP_BASIC_4 SELECT '4';
+
+-- Create child task n4
+CREATE TASK CONTROL_DB.TASKS.TASK_5
+    WAREHOUSE = COMPUTE_WH
+AFTER CONTROL_DB.TASKS.TASK_4
+AS INSERT INTO DEMO_DB.PUBLIC.EMP_BASIC_5 SELECT '5';
+
+-- Create child task n5
+CREATE TASK CONTROL_DB.TASKS.TASK_6
+    WAREHOUSE = COMPUTE_WH
+AFTER CONTROL_DB.TASKS.TASK_5
+AS INSERT INTO DEMO_DB.PUBLIC.EMP_BASIC_6 SELECT '6';
+
+-- Create child task n6
+CREATE TASK CONTROL_DB.TASKS.TASK_7
+    WAREHOUSE = COMPUTE_WH
+AFTER CONTROL_DB.TASKS.TASK_6
+AS INSERT INTO DEMO_DB.PUBLIC.EMP_BASIC_7 SELECT '7';
+
+
+
+-- Correct Start procedure:
+
+-- Suspend Root Task
+ALTER TASK CONTROL_DB.TASKS.ROOT_TASK SUSPEND;
+-- Resume Child Tasks
+ALTER TASK CONTROL_DB.TASKS.TASK_2 RESUME;
+ALTER TASK CONTROL_DB.TASKS.TASK_3 RESUME;
+ALTER TASK CONTROL_DB.TASKS.TASK_4 RESUME;
+ALTER TASK CONTROL_DB.TASKS.TASK_5 RESUME;
+ALTER TASK CONTROL_DB.TASKS.TASK_6 RESUME;
+ALTER TASK CONTROL_DB.TASKS.TASK_7 RESUME;
+-- Resume Root Task
+ALTER TASK ROOT_TASK RESUME;
+
+
+
+-- Correct Suspend procedure:
+
+-- Suspend Root Task
+ALTER TASK CONTROL_DB.TASKS.ROOT_TASK SUSPEND;
+-- Suspend Child Tasks
+ALTER TASK CONTROL_DB.TASKS.TASK_2 SUSPEND;
+ALTER TASK CONTROL_DB.TASKS.TASK_3 SUSPEND;
+ALTER TASK CONTROL_DB.TASKS.TASK_4 SUSPEND;
+ALTER TASK CONTROL_DB.TASKS.TASK_5 SUSPEND;
+ALTER TASK CONTROL_DB.TASKS.TASK_6 SUSPEND;
+ALTER TASK CONTROL_DB.TASKS.TASK_7 SUSPEND;
