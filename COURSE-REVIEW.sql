@@ -3547,6 +3547,8 @@ ALTER TASK CONTROL_DB.TASKS.TASK_7 SUSPEND;
 -- Table" can be the same table where you are applying changes, or another table
 -- entirely.
 
+-- An alternative to Streams is the CHANGES clause, seen below.
+
 -- The best thing we can do, with Streams, is combine them with Tasks to 
 -- create custom ETL workflows, to consume their data automatically
 
@@ -3619,3 +3621,64 @@ CREATE STREAM CONTROL_DB.STREAMS.MEMBER_CHECK ON TABLE DEMO_DB.PUBLIC.EMP_BASIC 
 -- Create Append-only Stream on source table (will capture only INSERT operations on table. Update and Delete-related operations won't be captured)
 CREATE OR REPLACE STREAM CONTROL_DB.STREAMS.MEMBERS_CHECK_APPEND_ONLY ON TABLE DEMO_DB.PUBLIC.MEMBERS_DEV
 APPEND_ONLY=TRUE;
+
+
+
+
+
+
+
+
+
+
+
+
+-- The Changes Clause 
+
+
+
+
+
+
+
+-- The CHANGES clause has a similar purpose to the
+-- Stream Object, but with three important differences:
+
+--     1) Records/changes captured by it are not consumed
+--        when they are used. They will stay active, even if you 
+--        use them.
+
+--     2) Unlike the Stream Object, the CHANGES clause is not an 
+--        object, and is used together with your SELECT statements.
+
+--     3) To use it, we need to alter our tables with the option
+--        CHANGE_TRACKING=TRUE
+
+
+
+
+-- Example Syntax:
+
+
+
+
+
+-- To use the CHANGES clause, to track changes, this property value is needed
+ALTER TABLE DEMO_DB.PUBLIC.EMP_BASIC
+    SET CHANGE_TRACKING=TRUE;
+
+-- How to use the CHANGES clause, in our SELECT statements (with "offset", see changes up to x amount of minutes, in the past)
+SELECT * FROM DEMO_DB.PUBLIC.EMP_BASIC
+CHANGES(information => default)
+AT (OFFSET => -0.5*60);
+
+-- How to use the CHANGES clause, in our SELECT statements (with "timestamp", see changes up to that timestamp, in the past)
+SELECT * 
+FROM DEMO_DB.PUBLIC.EMP_BASIC
+CHANGES(information => default)
+AT(TIMESTAMP => <your_timestamp>);
+
+-- Using the CHANGES clause with "append_only", we return only the changes of type INSERT that happened up to that timestamp, in the past.
+SELECT * FROM SALES_RAW 
+CHANGES(information => append_only)
+AT(timestamp => 'your-timestamp'::timestamp_tz');
