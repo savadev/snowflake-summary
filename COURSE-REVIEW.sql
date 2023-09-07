@@ -3523,14 +3523,86 @@ ALTER TASK CONTROL_DB.TASKS.TASK_7 SUSPEND;
 -- and returns CDC (Change Data Capture) records by leveraging the 
 -- versioning history of the source table.
 
+-- It's also possible to create multiple Stream objects on top 
+-- of a same table (this is useful when we have/need to work with 
+-- multiple "consumers" of the table's changes). The Stream Objects,
+-- in this case, will be independent from each other.
+
+-- Streams don't last forever; they expire after 14 days, by default.
+-- This can be checked with the "SHOW STREAMS" command, in the column
+-- "MAX_DATA_ENTENSION_TIME_IN_DAYS". This can also be checked with
+-- "DESCRIBE STREAM <stream_name>". The "STALE_AFTER" column shows the 
+-- prediction of when the given Stream will expire.
+
 -- Whenever a Stream Object's "change record" is used, it 
--- is consumed, and ceases to exist.
+-- is consumed, and ceases to exist. You cannot consume only 
+-- "part" of a Stream; even if you use only a part of the records/changes 
+-- captured in a Stream in a DML operation, the whole Stream, with all of 
+-- its records/data captures, will be consumed. When a Stream is consumed, 
+-- its offset is advanced.
+
+-- "Consumer Tables" are tables that consume the changes stored in Stream 
+-- Objects. A given Stream Object can only be consumed by a single Consumer 
+-- Table, as its data will cease to exist after being consumed. A "Consumer
+-- Table" can be the same table where you are applying changes, or another table
+-- entirely.
 
 
 
 -- There are two kinds of Stream object:
 
+
     -- 1) Standard - Captures INSERTS, UPDATES AND DELETES
 
-
     -- 2) Append-only - Captures only INSERTS.
+
+
+
+
+
+
+-- Example Syntax:
+
+
+
+-- Create a table to store the names and fees paid by members of a gym 
+CREATE OR REPLACE TABLE DEMO_DB.PUBLIC.MEMBERS_DEV (
+    ID NUMBER(8) NOT NULL,
+    NAME VARCHAR(255) DEFAULT NULL,
+    FEE NUMBER(3) NULL
+);
+
+-- Create a Stream Object to track changes to members table
+CREATE OR REPLACE STREAM CONTROL_DB.STREAMS.MEMBER_CHECK ON TABLE DEMO_DB.PUBLIC.MEMBERS_DEV;
+
+-- Insert data (changes) into members table
+INSERT INTO DEMO_DB.PUBLIC.MEMBERS_DEV (ID, NAME, FEE)
+VALUES 
+(1, 'Joe', 0),
+(2, 'Jane', 0),
+(3, 'George', 0),
+(4, 'Betty', 0),
+(5, 'Sally', 0);
+
+-- Check Stream Object's data captures:
+SELECT * FROM CONTROLDB.STREAMS.MEMBER_CHECK;
+
+-- Output Format:
+ID	NAME	FEE	        METADATA$ACTION	        METADATA$ISUPDATE	    METADATA$ROW_ID
+1	Joe	    0	           INSERT	                    FALSE	        26ebaca5271316a90083471aa845abd60240f5e2
+2	Jane	0	           INSERT	                    FALSE	        56900cf9df958e162b3ade459692317ca6fa2ab0
+3	George	0	           INSERT	                    FALSE	        da44edeea3fd94766c61fd561c5d583dc84c3d34
+4	Betty	0	           INSERT	                    FALSE	        f0a56bf02e41f27e1cf35332081807639e89ea49
+5	Sally	0	           INSERT	                    FALSE	        c76ab7e17d8f1c8693f039e3e1712da80df7f727
+
+-- Create additional table, where we'll insert the Stream's "records" (data captures of the records that were changed/inserted)
+CREATE OR REPLACE TABLE DEMO_DB.PUBLIC.MEMBERS_PROD (
+    ID NUMBER(8) NOT NULL,
+    NAME VARCHAR(255) DEFAULT NULL,
+    FEE NUMBER(3) NULL
+);
+
+-- Consume Stream Data (records in the Stream Object will cease to exist)
+INSERT INTO DEMO_DB.PUBLIC.MEMBERS_PROD(id, name, fee) 
+SELECT ID, NAME, FEE 
+FROM CONTROL_DB.STREAMS.MEMBER_CHECK;
