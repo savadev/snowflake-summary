@@ -2865,18 +2865,22 @@ CREATE DATABASE SHARED_DATABASE FROM SHARE <producer_account_id>.EXAMPLE_SHARE;
 
 
 
+-- Before even considering Time Travel, as a common best practice, whenever we 
+-- attempt to run a large, conscious DML on one of our tables, we should always create a backup
+-- of that table, preferably using the "Clone" feature of Snowflake (doing so, we save compute power).
 
--- Exists in Permanent (1 to 90 days) and Transient Tables (1 day, max).
 
-
-
-
--- There are two ways to restore the data of a table, using Time Travel,
--- in disaster scenarios, one proper, other unproper.
+-- Time Travel is available in Permanent (1 to 90 days retention period) and Transient Tables (1 day, max).
 
 
 
--- A) Unproper way, doing the restore with a single command, which will erase table's timeline:
+
+-- There are two ways to restore the data of a table, in disaster scenarios, using Time Travel. 
+-- One proper, other unproper.
+
+
+
+-- A) Unproper way, doing the restore with a single command (CREATE OR REPLACE), which will erase table's timeline (table's hidden ID will be dropped):
 
 
 -- Restores table data to former state, before the mistake, but erases Table's timeline completely
@@ -2908,6 +2912,43 @@ SELECT * FROM DEMO_DB.PUBLIC.EMP_BASIC BEFORE(statement => '<your-query-id>');
 -- Basic Syntax:
 
 
+-- Alter Retention Period of your Table (possible with Transient and Permanent tables)
+ALTER TABLE DEMO_DB.PUBLIC.EMP_BASIC_PERMANENT
+SET DATA_RETENTION_TIME_IN_DAYS=45; -- max is 90
+
+ALTER TABLE DEMO_DB.PUBLIC.EMP_BASIC_TRANSIENT
+SET DATA_RETENTION_TIME_IN_DAYS=1; -- options are 0 (disabled) or 1 (maximum)
+
+-- Disable Time Travel in your table (possible with Transient and Permanent tables)
+ALTER TABLE DEMO_DB.PUBLIC.EMP_BASIC_PERMANENT
+SET DATA_RETENTION_TIME_IN_DAYS=0;
 
 -- Get the state of your table 1 minute into the past
-SELECT * FROM EMP AT(offset => 60 * 1);
+SELECT * FROM DEMO_DB.PUBLIC.EMP_BASIC AT(offset => 60 * 1);
+
+-- Get the state of your table, AT a given moment, using timestamps
+SELECT * FROM DEMO_DB.PUBLIC.EMP_BASIC AT(TIMESTAMP => 'Mon, 01 May 2015 16:20:00 -0700'::TIMESTAMP);
+SELECT * FROM DEMO_DB.PUBLIC.EMP_BASIC AT(TIMESTAMP => TO_TIMESTAMP(1432669154242, 3));
+
+-- (most useful) Get the state of your table, BEFORE the execution of a certain statement/transaction (queryId needed)
+SELECT * from DEMO_DB.PUBLIC.EMP_BASIC BEFORE(STATEMENT => '<query_id>'); -- format: 8e5d0ca9-005e-44e6-b858-a8f5b37c5726
+
+-- Return the difference in table data resulting from a certain statement/transaction
+SELECT
+OLD_TABLE.*,
+NEW_TABLE.*
+FROM DEMO_DB.PUBLIC.EMP_BASIC BEFORE(STATEMENT => '8e5d0ca9-005e-44e6-b858-a8f5b37c5726') as OLD_TABLE
+FULL OUTER JOIN DEMO_DB.PUBLIC.EMP_BASIC AT(STATEMENT => '8e5d0ca9-005e-44e6-b858-a8f5b37c5726') as NEW_TABLE
+ON OLD_TABLE.id = NEW_TABLE.id
+WHERE OLD_TABLE.id IS NULL OR NEW_TABLE.id is null;
+
+-- Undo the Drop of a Table
+DROP TABLE DEMO_DB.PUBLIC.EMP_BASIC;
+UNDROP TABLE DEMO_DB.PUBLIC.EMP_BASIC;
+
+-- Undo the Drop of Schemas and Databases
+DROP SCHEMA DEMO_DB.PUBLIC;
+UNDROP SCHEMA DEMO_DB.PUBLIC;
+DROP DATABASE DEMO_DB;
+UNDROP DATABASE DEMO_DB;
+
