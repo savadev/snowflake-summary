@@ -3681,4 +3681,4 @@ AT(TIMESTAMP => <your_timestamp>);
 -- Using the CHANGES clause with "append_only", we return only the changes of type INSERT that happened up to that timestamp, in the past.
 SELECT * FROM SALES_RAW 
 CHANGES(information => append_only)
-AT(timestamp => 'your-timestamp'::timestamp_tz');
+AT(timestamp => 'your-timestamp'::timestamp_tz);
