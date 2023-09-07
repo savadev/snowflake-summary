@@ -10,6 +10,15 @@
 -- In most cases, compute costs, when using Snowflake normally, are higher
 -- than storage costs (5-6 times the storage cost, generally).
 
+-- Development teams should use same Warehouse during development, to maximize 
+-- caching and reduce processing costs.
+
+-- For the Development Warehouse, we should set auto-suspend to 15 minutes, to 
+-- maximize the Virtual Warehouse local cache (which is cleared everytime our Warehouse 
+-- is shutdown/suspended); this is the better practice, even if our Warehouse stays on for
+-- a while longer, as developers will constantly run queries on this Warehouse and utilize its 
+-- cache.
+
 -- Creating a warehouse, to run queries:
 CREATE OR REPLACE WAREHOUSE audiencelab_main with
 warehouse_size='X-SMALL'
@@ -42,6 +51,7 @@ SELECT * FROM TABLE(INFORMATION_SCHEMA.WAREHOUSE_LOAD_HISTORY(DATE_RANGE_START=>
 SELECT * FROM TABLE(INFORMATION_SCHEMA.WAREHOUSE_METERING_HISTORY(DATEADD('SEC',-500,CURRENT_DATE()),CURRENT_DATE()));
 
 SELECT * FROM TABLE(INFORMATION_SCHEMA.WAREHOUSE_METERING_HISTORY(CURRENT_DATE()));
+
 
 
 -- General Cost Monitoring queries (ACCOUNTADMIN needed):
@@ -3051,7 +3061,8 @@ UNDROP DATABASE DEMO_DB;
 -- which will generate those unwanted Fail-safe bytes. Less important Tables, 
 -- in your system, should also be maintained as Transient Tables.
 
--- Staging tables should always be created as Transient Tables, as well.
+-- Staging tables should always be created as Transient Tables, as well. Additionaly,
+-- a best practice is to set its Retention Time to 0, to disable Time Travel.
 
 
 
@@ -3710,8 +3721,99 @@ AT(timestamp => 'your-timestamp'::timestamp_tz);
 
 
 
+-- Example of Streams combined with tasks - 
+-- SCD (Slowly Changing Dimensions) Type 1 (each "entry"
+-- has multiple records assigned to it, depending on the number of times 
+-- it has been modified, also with the date of each change)
 
--- Example - SCD (Slowly Changing Dimensions) Type 1 - Streams combined with Tasks
+-- 
+-- The line that makes everything work is "WHEN SYSTEM%STREAM_HAS_DATA('<stream_name>')"
+
+-- OBS: Updates will produce 2 records, "DELETE" AND "INSERT".
+
+-- Code:
+
+-- Create Source Table
+CREATE OR REPLACE TABLE DEMO_DB.PUBLIC.SOURCE_TABLE (
+    ID INT,
+    NAME STRING
+);
+
+-- Create Standard Stream
+CREATE OR REPLACE STREAM CONTROL_DB.STREAMS.EXAMPLE_STREAM
+ON TABLE DEMO_DB.PUBLIC.SOURCE_TABLE;
+
+-- Create consumer/target table 
+CREATE OR REPLACE TABLE DEMO_DB.PUBLIC.TARGET_TABLE (
+    ID INT,
+    NAME STRING,
+    STREAM_TYPE STRING DEFAULT NULL,
+    REC_VERSION NUMBER DEFAULT 0,
+    REC_DATE TIMESTAMP_LTZ
+);
+
+-- Create/update Task (initially suspended)
+CREATE TASK CONTROL_DB.TASKS.EXAMPLE_TASK
+    WAREHOUSE=COMPUTE_WH
+    SCHEDULE='1 MINUTE'
+    WHEN SYSTEM$STREAM_HAS_DATA('CONTROL_DB.STREAMS.EXAMPLE_STREAM')
+AS 
+MERGE INTO DEMO_DB.PUBLIC.TARGET_TABLE AS T
+USING CONTROL_DB.STREAMS.EXAMPLE_STREAM AS S 
+ON T.ID=S.ID AND (METADATA$ACTION='DELETE')
+WHEN MATCHED AND METADATA$ISUPDATE='FALSE' THEN 
+UPDATE SET REC_VERSION=9999, STREAM_TYPE='DELETE'
+WHEN MATCHED AND METADATA$ISUPDATE='TRUE' THEN
+UPDATE SET REC_VERSION=REC_VERSION - 1
+WHEN NOT MATCHED THEN INSERT (ID, NAME, STREAM_TYPE, REC_VERSION, REC_DATE)
+VALUES (
+    S.ID, S.NAME, METADATA$ACTION, 0, CURRENT_TIMESTAMP()
+);
+
+-- Start Task 
+ALTER TASK CONTROL_DB.TASKS.EXAMPLE_TASK RESUME;
+
+-- Insert 3 rows into Source Table
+INSERT INTO DEMO_DB.PUBLIC.SOURCE_TABLE VALUES (0, 'charlie brown');
+INSERT INTO DEMO_DB.PUBLIC.SOURCE_TABLE VALUES (1, 'lucy');
+INSERT INTO DEMO_DB.PUBLIC.SOURCE_TABLE VALUES (2, 'linus');
+
+-- Insert 3 more rows, but with different values
+INSERT INTO DEMO_DB.PUBLIC.SOURCE_TABLE VALUES (3, 'charlie brown');
+INSERT INTO DEMO_DB.PUBLIC.SOURCE_TABLE VALUES (4, 'lucy lucy');
+INSERT INTO DEMO_DB.PUBLIC.SOURCE_TABLE VALUES (5, 'linus linus');
+
+-- View results
+SELECT * FROM DEMO_DB.PUBLIC.TARGET_TABLE;
+
+-- Target Table output:
+ID	NAME	           STREAM_TYPE	REC_VERSION	      REC_DATE
+2	linus	              INSERT	     0	    2023-08-23 11:24:44.527 -0700
+3	charlie brown	      INSERT	     0	    2023-08-23 11:24:44.527 -0700
+5	linus linus	          INSERT	     0	    2023-08-23 11:24:44.527 -0700
+4	lucy lucy	          INSERT	     0	    2023-08-23 11:24:44.527 -0700
+0	charlie brown	      INSERT	     0	    2023-08-23 11:24:44.527 -0700
+1	lucy	              INSERT	     0	    2023-08-23 11:24:44.527 -0700
+
+
+-- View Tasks details 
+SHOW TASKS;
+
+-- View Task execution history
+SELECT * FROM TABLE(SNOWFLAKE.INFORMATION_SCHEMA.TASK_HISTORY());
 
 
 
+
+
+
+
+
+
+-- MODULE 24 --
+
+
+
+
+
+-- Continuous data load, with Streams and Tasks
