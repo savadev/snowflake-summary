@@ -7,7 +7,8 @@
 -- Warehouse means a group of nodes 
 -- and clusters which  helps to process the data.
 
-
+-- In most cases, compute costs, when using Snowflake normally, are higher
+-- than storage costs (5-6 times the storage cost, generally).
 
 -- Creating a warehouse, to run queries:
 CREATE OR REPLACE WAREHOUSE audiencelab_main with
@@ -2871,13 +2872,23 @@ CREATE DATABASE SHARED_DATABASE FROM SHARE <producer_account_id>.EXAMPLE_SHARE;
 
 
 -- Time Travel is available in Permanent (1 to 90 days retention period) and Transient Tables (1 day, max).
+-- We must always be aware that Time Travel generates storage costs; the more we update our tables, the more
+-- cost we'll generate (more "versions" of our table will be created, behind the scenes). The more days we set as
+-- retention period, the more costs we'll generate, as well.
 
+-- When a Transient Table is created, its Retention Period is set to 1 (one day, the max). We can disable
+-- its Time Travel feature afterwards, if we set its Retention Period to 0.
 
+-- With production tables, a good Retention Period is 4-5 days; with this value, we get to benefit from added
+-- security, with not so high additional storage costs (though the additional cost may vary depending on our use-cases;
+-- the more frequent our updates, the higher the cost).
 
+-- If we clone one of our databases, to use the clone for Analytics purposes, we should create the clone
+-- as Transient and set its Retention Period to 0 (because, as it will be a complete copy of 
+-- the original object, it'll also have its Retention Period, whatever value it may be).
 
 -- There are two ways to restore the data of a table, in disaster scenarios, using Time Travel. 
 -- One proper, other unproper.
-
 
 
 -- A) Unproper way, doing the restore with a single command (CREATE OR REPLACE), which will erase table's timeline (table's hidden ID will be dropped):
@@ -2952,3 +2963,24 @@ UNDROP SCHEMA DEMO_DB.PUBLIC;
 DROP DATABASE DEMO_DB;
 UNDROP DATABASE DEMO_DB;
 
+
+
+
+
+
+
+-- MODULE 19 --
+
+
+
+
+-- Fail-safe
+
+
+
+
+
+
+-- This feature backups your data, after the chosen retention period 
+-- of your table ends (1-90 days). Fail-safe zone is the 7-day period
+-- after the retention period of your tables, where 
