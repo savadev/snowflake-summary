@@ -4819,7 +4819,8 @@ FROM DEMO_DB.PUBLIC.PATIENT;
 -- Each Object can have multiple tags assigned to itself, but each tag can only 
 -- have a single value.
 
--- We can also pre-define what values are permitted, for a given tag.
+-- We can also pre-define what values are permitted, for a given tag. These values
+-- must be defined at the moment of the tag's creation
 
 
 
@@ -4834,11 +4835,24 @@ CREATE OR REPLACE TAG CONTROL_DB.TAGS.DB_DATA_SENSITIVITY;
 CREATE OR REPLACE DATABASE REVENUE WITH TAG (
     CONTROL_DB.TAGS.DB_DATA_SENSITIVITY = 'Red Data'
 );
-
+-- Apply tag to a given object, while setting a value ('Orange Data') to the tag
 CREATE OR REPLACE DATABASE MARKETING WITH TAG (
     CONTROL_DB.TAGS.DB_DATA_SENSITIVITY = 'Orange Data'
 );
-
+-- Apply tag to a given object, while setting a value ('Green Data') to the tag
 CREATE OR REPLACE DATABASE WEATHER WITH TAG (
     CONTROL_DB.TAGS.DB_DATA_SENSITIVITY = 'Green Data'
 );
+
+-- Alter value of a tag, after it has already been applied to an object
+ALTER DATABASE REVENUE 
+SET TAG DEMO_DB.PUBLIC.DB_DATA_SENSITIVITY='Purple Data';
+
+-- See the value of a given Tag, in a given Object (<tag_name>, <object_name>, <object_type>)
+SELECT SYSTEM$GET_TAG(
+    'TAG CONTROL_DB.TAGS.DB_DATA_SENSITIVITY', 'REVENUE', 'DATABASE'
+);
+
+-- View all of the tags created in our system (ACCOUNTADMIN role needed)
+SELECT * FROM SNOWFLAKE.ACCOUNT_USAGE.TAG_REFERENCES
+ORDER BY TAG_NAME, DOMAIN, OBJECT_ID;
