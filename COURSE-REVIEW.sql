@@ -5049,3 +5049,12 @@ SET MASKING POLICY COMMENTS_MASK,
 -- Applying Tag to a Table (Masking Policies will be applied as well)
 ALTER TABLE DEMO_DB.PUBLIC.EMP_BASIC
 SET TAG DEMO_DB.PUBLIC.GENERAL_TAG='Some table 1';
+
+-- Assign Masking Policy to Tag
+ALTER TAG TAGS.GOVERNANCE.COMMENTS_TAG
+SET MASKING POLICY COMMENTS_MASK;
+
+-- Apply tag to single column (rest of columns does not get modified)
+ALTER TABLE DEMO_DB.PUBLIC.EMP_BASIC 
+MODIFY COLUMN "Comments" 
+SET TAG TAGS.GOVERNANCE.COMMENTS_TAG='Hey there';
