@@ -4128,3 +4128,86 @@ created_on	                            name	            reserved	    database_na
 --  Obviously, this setup shown above is not the same as the one used by real Materialized Views, but it 
 --  can generally satisfy our business needs. The advantage in relation to MVs is that we can control how
 --  often the refreshes will run, scheduling them according to our needs.
+
+
+
+
+
+
+
+
+
+
+
+-- MODULE 26 --
+
+
+
+
+
+
+-- Dynamic Tables 
+
+
+
+
+
+
+-- Before understanding the Dynamic Table Object/Concept,
+-- we should review the difference between Common Views 
+-- and Materialized Views
+
+
+-- Common Views:
+
+-- 1) Objects that store query logic, but don't have their own storage (and no costs)
+
+-- 2) No actual caching of data (result sets are not stored)
+
+-- 3) As no data is cached, queries always run anew, and end up not using 
+--    any of Snowflake's caching capabilities (additional compute costs, increased wait time during queries)
+
+-- 4) As queries are run "anew", Common Views always end up "refreshed"
+--    immediately, automatically, meaning we always get the most up-to-date
+--    data.
+
+
+
+-- Materialized Views:
+
+-- 1) Separate Objects, with their own storage (with their own cost)
+
+-- 2) Actual caching of data (result sets are stored, they persist)
+
+-- 3) Queries take advantage of the cached data (reduced compute costs, increased query speed)
+
+-- 4) MVs are refreshed automatically, by a background service, but the 
+--    process is not instantaneous, and we have no control over it (interval between refreshes)
+
+-- 5) Complex queries (with JOINS and complex aggregates) are not supported.
+
+
+
+
+
+-- With Dynamic Tables, the objective is to overcome the limitations seen in Views and MVs,
+-- allowing us to:
+
+
+-- 1) Write complex queries, on top of multiple tables (JOINS)
+
+-- 2) Persist the query results (caching of result sets, increased speed)
+
+-- 3) Set the refresh schedule as we want (daily, weekly, every two days, every 12 hours, etc.)
+
+
+
+
+
+
+
+
+
+-- Example Syntax:
+
+
