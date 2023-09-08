@@ -4216,6 +4216,13 @@ created_on	                            name	            reserved	    database_na
 -- E) You can only define refreshing intervals by "X <time-unit>", as shown below. You cannot use CRON expressions (ex: "refresh at this time of day" - this is 
 -- not possible).
 
+-- F) Dynamic Tables can have two kind of refreshes occuring inside of them: Incremental Refreshes and Full Refreshes. Full 
+--    Refreshes must always be avoided, as they involve the refreshing of the entire Dynamic Table, instead of only a part of it (incremental).
+--    Full Refreshes happen when we use "UNION" in the statement that creates our Dynamic Table. Dynamic Tables currently only support INNER JOINs,
+--    OUTER JOINS and CROSS JOINs for incremental refreshes. There is no point in using Dynamic Tables if our refreshes are always being Full
+--    Refreshes, because there will be no speed improvement with the feature.
+
+
 
 
 -- Example Syntax:
@@ -4271,3 +4278,54 @@ SELECT * FROM DEMO_DB.PUBLIC.LINEITEM_DUMMY;
 SELECT * FROM DEMO_DB.PUBLIC.LINEITEM_DYNAMIC;
 
 
+
+
+
+
+
+
+-- Dynamic Table usage example (no-dynamic-table vs with-dynamic-table):
+
+
+
+
+-- In the Traditional Scenario, without Dynamic Table, we'll have:
+
+
+-- A) Two Staging Tables, Transient, X and Y
+
+-- B) A third Table, Intermediate Table Z, which will be created by the JOIN between Tables X and Y
+
+-- C) A final Table, on top of which we will run a MERGE statement, merging the Z table (joined data of X and Y) with it.
+
+
+
+
+
+
+-- Code (no Dynamic Table):
+
+
+-- Create Staging Table X
+CREATE OR REPLACE TRANSIENT TABLE DEMO_DB.PUBLIC.TABLE_X
+AS 
+SELECT * FROM SNOWFLAKE_SAMPLE_DATA.TPCH_SF1.CUSTOMER;
+
+-- Create Staging Table Y
+CREATE OR REPLACE TRANSIENT TABLE DEMO_DB.PUBLIC.TABLE_Y
+AS 
+SELECT * FROM SNOWFLAKE_SAMPLE_DATA.TPCH_SF1.ORDERS;
+
+-- Create Table Z, intermediate Table
+CREATE OR REPLACE TRANSIENT TABLE 
+DEMO_DB.PUBLIC.TABLE_Z
+AS 
+SELECT
+A.C_CUSTKEY,
+A.C_NAME,
+A.C_ADDRESS,
+B.O_ORDERSTATUS,
+B.O_ORDERPRIORITY 
+FROM DEMO_DB.PUBLIC.CUSTOMER_STG AS A 
+INNER JOIN DEMO_DB.PUBLIC.ORDERS_STG AS B 
+ON A.C_CUSTKEY = B.C_CUSTKEY;
