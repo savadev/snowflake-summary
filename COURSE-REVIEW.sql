@@ -3817,3 +3817,135 @@ SELECT * FROM TABLE(SNOWFLAKE.INFORMATION_SCHEMA.TASK_HISTORY());
 
 
 -- Continuous data load, with Streams and Tasks
+
+
+
+
+
+
+-- We will leverage some of the Snowflake 
+-- features to load data continuously.
+
+
+-- We will use:
+
+-- 1) Snowpipe
+
+-- 2) Streams
+
+-- 3) Tasks
+
+
+
+
+-- The steps to be followed are:
+
+
+
+-- 0) Before you do anything, you should have your files split in smaller chunks, for easier copying and use.
+
+-- 1) Have your data loaded in AWS S3
+
+
+-- 1.5) List the files in your bucket, in S3, with the AWS CLI:
+
+aws s3 ls 
+
+-- 1.6) If you wish to create a new folder inside your bucket, in S3, use this command:
+
+aws s3api put-object --bucket <bucket_name> --key myfolder/
+
+-- 2) Set up a Snowpipe, and integrate it with your bucket (SQS)
+
+-- 3) Set up a Task to Auto-refresh the Pipe, for error cases while loading the files. (this Task will run every minute, to refresh the Pipe)
+
+-- 4) Create a Staging Table, Transient Type, that will receive the data from the files uploaded to our buckets
+
+-- 5) Create a Final Table, permanent Type, that will receive incremental data
+
+-- 6) Create a Stream, Stream X, that will watch the Staging Table and capture its changes
+
+-- 7) To end the flow, we create a Task that will automatically consume the rows (data captures) that appear in Stream X, use them to 
+--    insert rows/apply changes to the Final Table.
+
+
+
+
+-- So, the items needed are:
+
+-- A) 2 Tables, Staging and Final
+
+-- B) A Stream (or multiple streams, for multiple consumer tables), placed on top of the Staging Table
+
+-- C) A Snowpipe, to copy the data from AWS S3 into our Staging Table
+
+-- D) 2 tasks, one for refreshing the pipe, and another for consuming the data captures appearing in the Stream, to apply them in the Final Table.s
+
+
+
+
+-- Example Code:
+
+
+
+
+
+-- Beforehand, create Stage, Integration and File Format Objects.
+-- Then, Begin by creating the Staging Table
+CREATE TRANSIENT TABLE DEMO_DB.PUBLIC.STAGING (
+    C_ID STRING,
+    NAME STRING,
+    LAST_NAME STRING,
+    EMAIL STRING,
+    ZIP STRING
+);
+
+-- Copy Table Structure
+CREATE TABLE DEMO_DB.PUBLIC.FINAL LIKE DEMO_DB.PUBLIC.STAGING;
+
+--- Create Snowpipe to continuously load data (capture changes/data uploaded to S3)
+CREATE OR REPLACE PIPE CONTROL_DB.PIPES.SOME_PIPE
+    AUTO_INGEST=TRUE
+AS COPY INTO DEMO_DB.PUBLIC.STAGING
+    FROM @CONTROL_DB.STAGES.MY_EXT_STAGE
+    ON_ERROR='CONTINUE' -- very important
+    FILE_FORMAT=(
+        FORMAT_NAME=CONTROL_DB.FILE_FORMATS.CSV_FORMAT
+    );
+
+-- Check Pipe Status
+SELECT SYSTEM$PIPE_STATUS('CONTROL_DB.PIPES.SOME_PIPE');
+
+-- Refresh pipe manually, so new files can be copied into Staging Table
+ALTER PIPE SNOWPIPE REFRESH;
+
+-- Validate Pipe load, in the case of errors
+SELECT * FROM TABLE(
+    VALIDATE_PIPE_LOAD(
+        PIPE_NAME=>'CONTROL_DB.PIPES.SOME_PIPE',
+        start_time=>TO_DATE(CURRENT_TIMESTAMP())
+    )
+);
+
+SELECT * FROM TABLE(
+    VALIDATE_PIPE_LOAD(
+        PIPE_NAME=>'CONTROL_DB.PIPES.SOME_PIPE'
+    )
+);
+
+-- Create Stream on top of Staging Table
+CREATE OR REPLACE STREAM CONTROL_DB.STREAMS.STREAM_X
+ON TABLE DEMO_DB.PUBLIC.STAGING;
+
+-- Create Task to consume Stream data, insert it into Final Table
+CREATE OR REPLACE TASK CONTROL_DB.TASKS.S3_TASK 
+    WAREHOUSE=COMPUTE_WH
+    SCHEDULE='1 MINUTE'
+WHEN 
+    SYSTEM$STREAM_HAS_DATA('CONTROL_DB.STREAMS.STREAM_X')
+AS 
+INSERT INTO DEMO_DB.PUBLIC.FINAL
+SELECT * FROM CONTROL_DB.STREAMS.STREAM_X;
+
+-- Start Task
+ALTER TASK CONTROL_DB.TASKS.S3_TASK RESUME;
