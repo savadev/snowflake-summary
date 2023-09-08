@@ -1096,6 +1096,7 @@ CREATE SCHEMA CONTROL_DB.MASKING_POLICIES;
 CREATE SCHEMA CONTROL_DB.PIPES;
 CREATE SCHEMA CONTROL_DB.TASKS;
 CREATE SCHEMA CONTROL_DB.STREAMS;
+CREATE SCHEMA CONTROL_DB.TAGS;
 
 
 
@@ -4777,3 +4778,67 @@ SELECT
 <expression_and_masks>,
 <...>
 FROM DEMO_DB.PUBLIC.PATIENT;
+
+
+
+
+
+
+
+
+
+
+
+
+-- MODULE 28 --
+
+
+
+
+
+-- Tagging -- 
+
+
+
+
+
+
+
+-- This feature becomes extremely useful as your system grows; the more 
+-- tables and schemas you have, the more useful it becomes (120+ databases, 300 tables, etc)
+
+-- Use-case: When categorization (Database-Schema-Table, folder-like structure) is not good enough,
+-- then it is good to rely on tags, search by tags.
+
+-- Warehouses, Databases, Schemas, Tables, all can be tagged.
+
+-- We can also tag columns in our tables.
+
+-- A same tag can have multiple values ('Red', 'Orange', 'Green', etc)
+
+-- Each Object can have multiple tags assigned to itself, but each tag can only 
+-- have a single value.
+
+-- We can also pre-define what values are permitted, for a given tag.
+
+
+
+
+-- Example Syntax:
+
+
+-- Create a tag 
+CREATE OR REPLACE TAG CONTROL_DB.TAGS.DB_DATA_SENSITIVITY;
+
+-- Apply tag to a given object, while setting a value ('Red Data') to the tag
+CREATE OR REPLACE DATABASE REVENUE WITH TAG (
+    CONTROL_DB.TAGS.DB_DATA_SENSITIVITY = 'Red Data'
+);
+
+CREATE OR REPLACE DATABASE MARKETING WITH TAG (
+    CONTROL_DB.TAGS.DB_DATA_SENSITIVITY = 'Orange Data'
+);
+
+CREATE OR REPLACE DATABASE WEATHER WITH TAG (
+    CONTROL_DB.TAGS.DB_DATA_SENSITIVITY = 'Green Data'
+);
