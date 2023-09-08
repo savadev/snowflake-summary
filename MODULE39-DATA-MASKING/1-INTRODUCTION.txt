@@ -92,8 +92,6 @@ TIPO ASSIM:
 
 NAME        ADDRESS         EMP_iD      ZIP_CODE      SALARY 
 
-
-
 RAJESH      ASDASD          12313        1212**           *****
 
 

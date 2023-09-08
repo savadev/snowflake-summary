@@ -4520,3 +4520,170 @@ CREATE OR REPLACE DYNAMIC TABLE DEMO_DB.PUBLIC.EXAMPLE_DYNAMIC
 
 -- 2) The storage of data and operations are all handled by 
 --    Snowflake
+
+
+
+
+
+
+-- MODULE 27 -- 
+
+
+
+
+
+
+-- Data Masking -- 
+
+
+
+
+
+-- With it, we can hide entire values or parts of values 
+-- of our columns.
+
+
+-- Like this format:
+
+
+
+-- NAME        ADDRESS         EMP_ID      ZIP_CODE      SALARY 
+-- RAJESH      ASDASD          12313        1212**       *****
+
+
+
+-- Of course we can get a similar result with Views,
+-- we only need to use them with UDFs (functions), so
+-- that these functions end up formatting the values. 
+-- Even so, Snowflake Data Masking has some advantages, when 
+-- compared to them.
+
+-- Data Masks are called "Masking Policies", and must 
+-- be applied to columns to have any effects on their
+-- values.
+
+-- The Masks hide data according to the Roles in your 
+-- system.
+
+
+
+
+
+-- Example Syntax:
+
+
+
+-- Create Data Mask (created, but still not applied to a column) - Full mask (all values of the column are masked)
+CREATE OR REPLACE MASKING POLICY CONTROL_DB.MASKING_POLICIES.PHONE_POLICY
+    AS (VAL VARCHAR) RETURNS VARCHAR ->
+        CASE
+            WHEN CURRENT_ROLE() IN ('ANALYST_FULL', 'ACCOUNTADMIN') THEN VAL
+            ELSE '##-###-##'
+            END;
+
+-- Create Data Mask - Partial Mask (only a few of the values of the column are masked)
+CREATE OR REPLACE MASKING POLICY CONTROL_DB.MASKING_POLICIES.PHONE_POLICY_PARTIAL
+AS 
+(VAL STRING) RETURNS STRING -> 
+    CASE 
+        WHEN CURRENT_ROLE() IN ('SYSADMIN') THEN 
+        CASE WHEN VAL='25-247-272-2878' THEN 'ABDEFGH' ELSE VAL -- Only this value will be redacted.
+    END 
+ELSE '*******'
+END;
+
+-- Create a table while applying Masking Policy to a column
+CREATE OR REPLACE TABLE DEMO_DB.PUBLIC.EMP_BASIC (
+    FIRST_NAME STRING,
+    PHONE MASKING POLICY CONTROL_DB.MASKING_POLICIES.PHONE_POLICY
+);
+
+-- Apply Masking Policy on a specific column
+ALTER TABLE IF EXISTS DEMO_DB.PUBLIC.CUSTOMERS MODIFY COLUMN FULL_NAME 
+SET MASKING POLICY CONTROL_DB.MASKSING_POLICIES.PHONE_POLICY
+
+
+
+
+
+
+
+-- We can have the same effect by creating and sharing a Secure View, like this:
+
+
+
+-- Create UDF to format phone values 
+CREATE OR REPLACE FUNCTION "REDACT_PHONE"("PHONE" STRING)
+RETURNS STRING
+LANGUAGE SQL
+AS '
+SELECT
+CASE 
+    WHEN CURRENT_ROLE() IN (''ANALYST_FULL'',''ACCOUNTADMIN'') THEN "##-###-##"
+    ELSE PHONE
+END AS PHONE
+  ';
+  
+-- Create Secure View with redacted phones
+CREATE OR REPLACE SECURE VIEW DEMO_DB.PUBLIC.MASKED_PHONE_EMP_BASIC
+AS 
+SELECT 
+FIRST_NAME,
+LAST_NAME,
+REDACT_PHONE(PHONE) AS REDACTED_PHONE,
+ZIP
+FROM DEMO_DB.PUBLIC.EMP_BASIC;
+
+
+
+-- The advantage of views is that you can define masking policies based
+-- on multiple columns, as parameter (as we see in the example Syntax below),
+
+
+-- However, views also have problems of their own, such as:
+
+
+-- 1) If we have 100 Tables, we have to create 100 views;
+--    if we eventually want to change the masking of our view or 
+--    mask more of its columns, we'll have to recreate potentially 
+--    dozens of views.
+
+-- 2) Each time we edit/recreate a view, we need to re-add GRANTs
+--    and SELECTs on this view, to the roles that need to use it.
+
+-- 3) If we use Views/Secure Views, we are choosing to forgo the 
+--    caching features of Snowflake, generating additional costs 
+--    and query times.
+
+-- 4) We can end up with multiple Views for a same table.
+
+-- 5) The owner of the View can manipulate the View's definition 
+--    at will, removing any of the "masks"/UDFs that we used on it.
+
+-- 6) The data-masking, in this case, will be "code-driven", vulnerable 
+--    to edits.
+
+
+
+
+
+-- Masking Policies, on the other hands, have many advantages:
+
+
+-- 1) As they are Snowflake Objects, we can easily manage access
+--    to them, so that only the appropriate roles can edit them (with GRANTS).
+
+-- 2) If we mask a column's values entirely to a given role, that masking will also
+--    speed up our queries, indirectly (because Snowflake will "know" that all the values 
+--    in that column will be gibberish/redacted, so it will ignore it completely, not scan it 
+--    at all).
+
+-- 3) As they are objects, they can all be "stored" in a central place, like a Schema, like 
+--    in the "CONTROL_DB".
+
+-- 4)
+
+-- 5)
+
+-- 6) The data-masking will be "metadata-driven", much safer than code-driven protection.
+
