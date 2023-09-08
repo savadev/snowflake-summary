@@ -4805,14 +4805,16 @@ FROM DEMO_DB.PUBLIC.PATIENT;
 
 
 -- This feature becomes extremely useful as your system grows; the more 
--- tables and schemas you have, the more useful it becomes (120+ databases, 300 tables, etc)
+-- tables and schemas you have, the more useful it becomes (120+ databases, 300 tables, etc),
+-- as it helps us with data discovery, with understanding how our data is distributed across our system.
 
 -- Use-case: When categorization (Database-Schema-Table, folder-like structure) is not good enough,
 -- then it is good to rely on tags, search by tags.
 
 -- Warehouses, Databases, Schemas, Tables, all can be tagged.
 
--- We can also tag columns in our tables.
+-- We can also tag columns in our tables (when a tag is applied in a whole table,
+-- all the columns receive the same tag name and value).
 
 -- A same tag can have multiple values ('Red', 'Orange', 'Green', etc)
 
@@ -4820,12 +4822,32 @@ FROM DEMO_DB.PUBLIC.PATIENT;
 -- have a single value.
 
 -- We can also pre-define what values are permitted, for a given tag. These values
--- must be defined at the moment of the tag's creation
+-- must be defined at the moment of the tag's creation.
+
+-- A common best practice is to create a role dedicated to the task of applying 
+-- tags to your system's objects, like a "TAG_ADMIN" role. We can also create 
+-- a database dedicated to this task, of creating tags, named "TAGS", with 
+-- a schema of "GOVERNANCE", where all our tags may be put.
+
+-- To use tagging correctly, you should have discipline: when creating new objects,
+-- you should tag them accordingly.
+
+-- Obs: When we create/modify something in the metadata layer of Snowflake,
+--      like Tags, there is always some delay, the changes are never applied 
+--      instantly.
+
+
+
+-- To utiize tags, we have two steps:
+
+-- 1) Applying tags
+
+-- 2) Use tags with our queries, to have a better idea of "which data is where" in our system.
 
 
 
 
--- Example Syntax:
+-- Example Syntax part one (first step, "Applying tags"):
 
 
 -- Create a tag 
@@ -4856,3 +4878,141 @@ SELECT SYSTEM$GET_TAG(
 -- View all of the tags created in our system (ACCOUNTADMIN role needed)
 SELECT * FROM SNOWFLAKE.ACCOUNT_USAGE.TAG_REFERENCES
 ORDER BY TAG_NAME, DOMAIN, OBJECT_ID;
+
+
+
+
+
+-- Optional - Creation of Tag_ADMIN Role -- 
+
+
+
+
+--Create TAG_ADMIN role
+USE ROLE USERADMIN;
+CREATE ROLE TAG_ADMIN;
+
+-- Grant of "Tag Apply" privilege to TAG_ADMIN ROLE
+USE ROLE ACCOUNTADMIN;
+GRANT APPLY TAG ON ACCOUNT TO ROLE TAG_ADMIN;
+
+GRANT IMPORTED PRIVILEGES 
+ON DATABASE SNOWFLAKE TO ROLE TAG_ADMIN;
+
+-- Grant needed Warehouse privileges to TAG_ADMIN ROLE
+USE ROLE SYSADMIN;
+GRANT USAGE ON WAREHOUSE COMPUTE_WH TO ROLE TAG_ADMIN;
+GRANT OPERATE ON WAREHOUSE COMPUTE_WH TO ROLE TAG_ADMIN;
+
+-- Create TAG database
+CREATE DATABASE TAGS;
+CREATE SCHEMA TAGS.GOVERNANCE;
+
+-- Grant Privileges on TAGS database to ROLE TAG_ADMIN
+GRANT ALL PRIVILEGES ON DATABASE TAGS TO ROLE TAG_ADMIN;
+GRANT USAGE ON DATABASE TAGS TO ROLE TAG_ADMIN;
+
+GRANT ALL PRIVILEGES ON SCHEMA TAGS.GOVERNANCE TO ROLE TAG_ADMIN;
+GRANT USAGE ON SCHEMA TAGS.GOVERNANCE TO ROLE TAG_ADMIN;
+
+
+
+
+
+-- More Syntax examples:
+
+
+-- Creating a bunch of tags, in TAGS database - general tags, to be used in our tables' columns
+CREATE OR REPLACE TAG TAGS.GOVERNANCE.phone_number;
+CREATE OR REPLACE TAG TAGS.GOVERNANCE.address;
+CREATE OR REPLACE TAG TAGS.GOVERNANCE.names;
+CREATE OR REPLACE TAG TAGS.GOVERNANCE.comments;
+CREATE OR REPLACE TAG TAGS.GOVERNANCE.date;
+CREATE OR REPLACE TAG TAGS.GOVERNANCE.keys;
+CREATE OR REPLACE TAG TAGS.GOVERNANCE.region;
+
+-- Apply tags to a given table's columns:
+ALTER TABLE REVENUE.TRANSPORT.AIRLINE
+MODIFY COLUMN "Airlines Name"
+SET TAG TAG.GOVERNANCE.NAMES='Airline Name'; -- tag name, tag value.
+
+ALTER TABLE REVENUE.TRANSPORT.AIRLINE
+MODIFY COLUMN "Airlines RegionId"
+SET TAG TAG.GOVERNANCE.REGION='Region of airline'; -- tag name, tag value.
+
+ALTER TABLE REVENUE.TRANSPORT.AIRLINE
+MODIFY COLUMN "Date"
+SET TAG TAG.GOVERNANCE.DATE='Arrival Date'; -- tag name, tag value.
+
+ALTER TABLE REVENUE.TRANSPORT.AIRLINE
+MODIFY COLUMN "Airlines Notes"
+SET TAG TAG.GOVERNANCE.COMMENTS='Traffic Control Comments'; -- tag name, tag value.
+
+-- Check what tags have been applied on a given Table:
+SELECT *
+FROM TABLE(
+    SNOWFLAKE.INFORMATION_SCHEMA.TAG_REFERENCES_ALL_COLUMNS('REVENUE.TRANSPORT.AIRLINE', 'TABLE');
+)
+
+
+
+
+
+-- Example Syntax part two (second step, "searching by tags", after tags have been applied):
+
+
+
+-- ACCOUNTADMIN needed - this query will contain info about "what tags were applied, in which objects"
+CREATE OR REPLACE TABLE DEMO_DB.PUBLIC.ACCOUNT_TAGS_INFORMATION
+AS 
+SELECT * FROM SNOWFLAKE.ACCOUNT_USAGE.TAG_REFERENCES 
+ORDER BY TAG_NAME, DOMAIN, OBJECT_ID;
+
+-- Using the above table, we can filter it to find out in which tables/schemas/databases we can find x type of values, like 'REGION' (because this 'REGION' can exist 
+-- in multiple tables, can be "Living regions", or "Cultural regions", many use-cases)
+SELECT
+DATABASE,
+SCHEMA,
+TABLE_NAME,
+COLUMN_NAME,
+TAG_VALUE
+FROM ACCOUNT_TAGS_INFORMATION
+WHERE TAG_NAME='REGION';
+
+-- See how many "date"-related columns are in your schemas
+SELECT 
+DATABASE,
+SCHEMA,
+TABLE_NAME,
+COLUMN_NAME,
+TAG_VALUE 
+FROM ACCOUNT_TAGS_INFORMATION 
+WHERE TAG_NAME='DATE';
+
+-- See how many "name"-related columns are in your schemas...
+SELECT 
+DATABASE,
+SCHEMA,
+TABLE_NAME,
+COLUMN_NAME,
+TAG_VALUE 
+FROM ACCOUNT_TAGS_INFORMATION 
+WHERE TAG_NAME='NAMES';
+
+
+
+
+
+-- You can also combine Tagging with Masking Policies,
+-- to have "TAG-BASED MASKING POLICIES". If you use this
+-- feature, every time you apply a tag to a table/column,
+-- the assigned masking policy will be applied as well.
+
+
+
+-- Examples:
+
+
+
+
+
