@@ -4296,27 +4296,30 @@ SELECT * FROM DEMO_DB.PUBLIC.LINEITEM_DYNAMIC;
 
 -- B) A third Table, Intermediate Table Z, which will be created by the JOIN between Tables X and Y
 
--- C) A final Table, on top of which we will run a MERGE statement, merging the Z table (joined data of X and Y) with it.
+-- C) A fourth, final Table, FINAL, on top of which we will run a MERGE statement, merging the Z table (joined data of X and Y) with it.
+
+-- D) Two Streams, one for TABLE_X and other for TABLE_Y
+
+-- E) Three Tasks, one to MERGE TABLE_X and TABLE_Y into the TABLE_Z, another for clearing/consuming the streams, and another for the MERGE of the TABLE_Z into the FINAL table.
 
 
-
-
-
+-- /////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 -- Code (no Dynamic Table):
 
 
--- Create Staging Table X
+-- Create Staging Table X - Truncate and Load, always
 CREATE OR REPLACE TRANSIENT TABLE DEMO_DB.PUBLIC.TABLE_X
 AS 
 SELECT * FROM SNOWFLAKE_SAMPLE_DATA.TPCH_SF1.CUSTOMER;
 
--- Create Staging Table Y
+-- Create Staging Table Y - Truncate and Load - always
 CREATE OR REPLACE TRANSIENT TABLE DEMO_DB.PUBLIC.TABLE_Y
 AS 
 SELECT * FROM SNOWFLAKE_SAMPLE_DATA.TPCH_SF1.ORDERS;
 
--- Create Table Z, intermediate Table
+-- Create Table Z, intermediate Table, based on joined data from 2 staging tables.
+-- This intermediate table Z will be "Truncate and Load" (Drop and Recreate), and that's why we write "CREATE OR REPLACE" in the statement
 CREATE OR REPLACE TRANSIENT TABLE 
 DEMO_DB.PUBLIC.TABLE_Z
 AS 
@@ -4326,6 +4329,194 @@ A.C_NAME,
 A.C_ADDRESS,
 B.O_ORDERSTATUS,
 B.O_ORDERPRIORITY 
-FROM DEMO_DB.PUBLIC.CUSTOMER_STG AS A 
-INNER JOIN DEMO_DB.PUBLIC.ORDERS_STG AS B 
+FROM DEMO_DB.PUBLIC.TABLE_X AS A 
+INNER JOIN DEMO_DB.PUBLIC.TABLE_Y AS B 
 ON A.C_CUSTKEY = B.C_CUSTKEY;
+
+-- Create Final Table
+CREATE TABLE FINAL (
+    C_CUSTKEY STRING,
+    C_NAME STRING,
+    C.ADDRESS STRING,
+    O_ORDERSTATUS STRING,
+    O_ORDERPRIORITY STRING
+);
+
+-- Merge Intermediate Table Z into Final Table
+MERGE INTO DEMO_DB.PUBLIC.FINAL AS TARGET
+USING
+DEMO_DB.PUBLIC.TABLE_Z AS STAGING
+ON STAGING.C_CUSTKEY = TARGET.C_CUSTKEY
+    WHEN MATCHED THEN UPDATE SET
+    TARGET.C_NAME = STAGING.C_NAME
+    TARGET.C_ADDRESS = STAGING.C_ADDRESS
+    TARGET.O_ORDERSTATUS = STAGING.O_ORDERSTATUS
+    TARGET.O_ORDERPRIORITY = STAGING.O_ORDERPRIORITY
+WHEN NOT MATCHED THEN INSERT (STAGING.C_CUSTKEY, STAGING.C_NAME,
+STAGING.C_ADDRESS, STAGING.O_ORDERSTATUS, STAGING.O_ORDERPRIORITY)
+VALUES (
+STAGING.C_CUSTKEY,
+STAGING.C_ADDRESS,
+STAGING.O_ORDERSTATUS,
+STAGING.O_ORDERPRIORITY
+);
+
+
+-- The above code would work, but we would need to Create Tasks and Streams to automate the load process into the FINAL Table, like this:
+
+
+
+-- Create Streams on Tables X and Y
+CREATE OR REPLACE STREAM CONTROL_DB.STREAMS.STREAM_X
+ON TABLE DEMO_DB.PUBLIC.TABLE_X;
+CREATE OR REPLACE STREAM CONTROL_DB.STREAMS.STREAM_Y
+ON TABLE DEMO_DB.PUBLIC.TABLE_Y;
+
+
+-- Create Task to recreate Intermediate Table Z, at a certain interval, whenever there is data captured in the Streams. A child task is also needed, to clear the streams after the recreating of the table.
+CREATE OR REPLACE TASK CONTROL_DB.TASKS.EXAMPLE_TASK
+    WAREHOUSE=COMPUTE_WH
+    SCHEDULE='1 HOUR'
+WHEN 
+    SYSTEM$STREAM_HAS_DATA('CONTROL_DB.STREAMS.STREAM_X') OR
+    SYSTEM$STREAM_HAS_DATA('CONTROL_DB.STREAMS.STREAM_Y')
+AS 
+    CREATE OR REPLACE TRANSIENT TABLE 
+    DEMO_DB.PUBLIC.TABLE_Z
+    AS 
+    SELECT
+    A.C_CUSTKEY,
+    A.C_NAME,
+    A.C_ADDRESS,
+    B.O_ORDERSTATUS,
+    B.O_ORDERPRIORITY 
+    FROM DEMO_DB.PUBLIC.TABLE_X AS A 
+    INNER JOIN DEMO_DB.PUBLIC.TABLE_Y AS B 
+    ON A.C_CUSTKEY = B.C_CUSTKEY;
+
+-- Create Child Task of previous task, to clear Streams after TABLE_Z is recreated
+CREATE OR REPLACE TASK CONTROL_DB.TASKS.CHILD_EXAMPLE_TASK
+     WAREHOUSE=COMPUTE_WH
+AFTER CONTROL_DB.TASKS.EXAMPLE_TASK
+AS
+CREATE OR REPLACE TEMPORARY TABLE DEMO_DB.PUBLIC.RESET_TABLE AS
+SELECT * FROM CONTROL_DB.STREAMS.STREAM_X AS X 
+INNER JOIN CONTROL_DB.STREAMS.STREAM_Y AS Y
+ON X.C_CUSTKEY = Y.C_CUSTKEY;
+
+-- Create Task to MERGE data from TABLE_Z into FINAL Table, on a regular basis
+CREATE OR REPLACE TASK CONTROL_DB.TASKS.EXAMPLE_TASK_2
+    WAREHOUSE='compute_wh'
+    SCHEDULE='12 HOURS'
+AS 
+MERGE INTO DEMO_DB.PUBLIC.FINAL AS TARGET
+USING
+DEMO_DB.PUBLIC.TABLE_Z AS STAGING
+ON STAGING.C_CUSTKEY = TARGET.C_CUSTKEY
+    WHEN MATCHED THEN UPDATE SET
+    TARGET.C_NAME = STAGING.C_NAME
+    TARGET.C_ADDRESS = STAGING.C_ADDRESS
+    TARGET.O_ORDERSTATUS = STAGING.O_ORDERSTATUS
+    TARGET.O_ORDERPRIORITY = STAGING.O_ORDERPRIORITY
+WHEN NOT MATCHED THEN INSERT (STAGING.C_CUSTKEY, STAGING.C_NAME,
+STAGING.C_ADDRESS, STAGING.O_ORDERSTATUS, STAGING.O_ORDERPRIORITY)
+VALUES (
+STAGING.C_CUSTKEY,
+STAGING.C_ADDRESS,
+STAGING.O_ORDERSTATUS,
+STAGING.O_ORDERPRIORITY
+);
+
+
+-- Disadvantages of this traditional approach:
+
+-- 1) We are responsible for the code and for the scheduling, more 
+--    room for mistakes (no managed service).
+   
+-- 2) Harder to maintain
+
+
+
+-- Advantages of this traditional approach:
+
+-- 1) We have more freedom, and more control over the scheduling
+--    and the operations we want to run on our tables (INSERT,
+--    DELETE, UPDATE).
+
+-- 2) With this approach, SCD Type 1 and 2 are easier to build
+--    (useful if we want to keep previous versions of records, in our 
+--     table)
+
+
+-- ////////////////////////////////////////////////////////////
+
+
+
+
+-- With the usage of a Dynamic Table, we'll have:
+
+-- A) The two Staging tables, TABLE_X and TABLE_Y
+
+-- B) The Dynamic Table, EXAMPLE_DYNAMIC, and nothing more
+
+
+
+-- In this scenario, we don't have "CREATE OR REPLACE" with the Staging tables,
+-- because there will be no "Truncate and Load"; the data in the Staging tables will 
+-- always stay inside them, and will be replicated in the Dynamic Table.
+
+-- Also, in this scenario, there is a great simplification, because we don't have 
+-- to create the Intermediate Table TABLE_Z, nor MERGE the data from the intermediate table 
+-- into the FINAL table, nor create Tasks to orchestrate the creation/recreation of the 
+-- intermediate table and the merging of its data into the FINAL table
+
+
+-- Code (with Dynamic Tables; simpler to write):
+
+
+
+-- Create Staging Table X - no Truncate and Load
+CREATE TRANSIENT TABLE DEMO_DB.PUBLIC.TABLE_X
+AS 
+SELECT * FROM SNOWFLAKE_SAMPLE_DATA.TPCH_SF1.CUSTOMER;
+
+-- Create Staging Table Y - no Truncate and Load
+CREATE TRANSIENT TABLE DEMO_DB.PUBLIC.TABLE_Y
+AS 
+SELECT * FROM SNOWFLAKE_SAMPLE_DATA.TPCH_SF1.ORDERS;
+
+-- Create Dynamic Table - it will guarantee the persist of the updates, inserts and deletes, refreshed by the specified interval
+CREATE OR REPLACE DYNAMIC TABLE DEMO_DB.PUBLIC.EXAMPLE_DYNAMIC
+    TARGET_LAG='12 HOURS'
+    WAREHOUSE=compute_wh
+    AS
+    SELECT
+    X.C_CUSTKEY,
+    X.C_CUSTNAME,
+    X.C_ADDRESS,
+    Y.O_ORDERSTATUS,
+    Y.O_ORDERPRIORITY,
+    Y.o_orderkey
+    FROM DEMO_DB.PUBLIC.TABLE_X AS X 
+    INNER JOIN 
+    DEMO_DB.PUBLIC.TABLE_Y AS Y
+    ON A.C_CUSTKEY = B.C_CUSTKEY;
+
+
+
+-- Disadvantages of this Dynamic Table approach:
+
+-- 1) Less control
+   
+-- 2) We can't run DML operations directly on the Dynamic Table
+
+-- 3) SCD Type 2 is possible, but harder to implement
+
+
+-- Advantages of this traditional approach:
+
+-- 1) Data will be auto-refreshed, we don't need to worry about 
+-- scheduling refreshes and tasks
+
+-- 2) The storage of data and operations are all handled by 
+--    Snowflake
