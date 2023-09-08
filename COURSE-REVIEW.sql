@@ -4202,12 +4202,72 @@ created_on	                            name	            reserved	    database_na
 
 
 
+-- However, Dynamic Tables also have some unique traits/quirks:
 
+-- A) You can't run DML statements directly on top of Dynamic Tables (INSERT, UPDATE, DELETE). The only possible operation is "SELECT".
 
+-- B) Under the hood, Dynamic Tables use Stream Objects to track the changes to your main/source tables.
 
+-- C) As they are materialized query results (table derived from the query we ran on top of the source table/tables), 
+--    maintained by Snowflake, they also have storage costs associated to them.
+
+-- D) Some SQL features are not supported by them, such as Stored Procedures, Tasks, UDFs, and External Functions.
+
+-- E) You can only define refreshing intervals by "X <time-unit>", as shown below. You cannot use CRON expressions (ex: "refresh at this time of day" - this is 
+-- not possible).
 
 
 
 -- Example Syntax:
+
+
+
+-- Create Dynamic Table (we must define the "TARGET_LAG" between refreshes)
+CREATE OR REPLACE DYNAMIC TABLE DEMO_DB.PUBLIC.LINEITEM_DYNAMIC
+  TARGET_LAG = '20 minutes'  ---  Only Dynamic Tables have this option - table will be refreshed every 20 minutes. The minimum interval is 1 minute. We can also set seconds, hours and days
+  WAREHOUSE = compute_wh
+  AS
+  SELECT
+  l_returnflag,
+  l_linestatus,
+  sum(l_quantity) AS sum_qty,
+  sum(l_extendedprice) AS sum_base_price,
+  sum(l_extendedprice * (
+1
+ - l_discount)) AS sum_disc_price,
+  sum(l_extendedprice * (
+1
+ - l_discount) * (
+1
+ + l_tax)) AS sum_charge,
+  avg(l_quantity) AS avg_qty,
+  avg(l_extendedprice) AS avg_price,
+  avg(l_discount) AS avg_disc,
+  count(*) AS count_order
+FROM DEMO_DB.PUBLIC.LINEITEM -- Base table from which you want to create the Dynamic Table
+WHERE l_shipdate <= DATE '1998-12-01'
+GROUP BY  l_returnflag,  l_linestatus
+ORDER BY  l_returnflag,  l_linestatus; -- Order by Clauses are possible with Dynamic Tables, as they are not Materialized Views.
+
+-- If we try to query that Dynamic Table, we will receive an error - this is because the table won't have been created yet (TARGET_LAG of 20 minutes)
+SELECT * FROM DEMO_DB.PUBLIC.LINEITEM_DYNAMIC;
+
+-- Output:
+"Dynamic table 'DEMO_DB.PUBLIC.LINEITEM_DYNAMIC' is not initialized.
+Please run a manual refresh or wait for a manual refresh before querying"
+
+-- We can force that manual refresh, with this code - this refresh will inform us of the timestamp of the refresh, and also that 4 rows were inserted (extracted from 
+-- the main table)
+ALTER DYNAMIC TABLE DEMO_DB.PUBLIC.LINEITEM_DYNAMIC REFRESH;
+
+-- Check existence of table/status of data inside of Dynamic Table
+SELECT * FROM DEMO_DB.PUBLIC.LINEITEM_DYNAMIC;
+
+-- Insert some content in source table. - When the Dynamic Table gets refreshed, these changes will be reflected on it
+INSERT INTO DEMO_DB.PUBLIC.LINEITEM
+SELECT * FROM DEMO_DB.PUBLIC.LINEITEM_DUMMY;
+
+-- Check status of the data inside of the Dynamic Table - will only get updated after 20 minutes, as defined in the "TARGET_LAG" option
+SELECT * FROM DEMO_DB.PUBLIC.LINEITEM_DYNAMIC;
 
 
