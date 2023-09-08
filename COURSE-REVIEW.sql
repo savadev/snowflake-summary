@@ -4003,6 +4003,8 @@ ALTER TASK CONTROL_DB.TASKS.S3_TASK RESUME;
 -- If our main table is huge and gets updated daily/on a two-day basis,
 -- MVs are not worth using.
 
+
+
 -- Snowflake MVs also have some query limitations. They cannot query:
 
 -- A materialized view.
@@ -4032,6 +4034,13 @@ ALTER TASK CONTROL_DB.TASKS.S3_TASK RESUME;
 -- GROUP BY CUBE.
 
 -- Nesting of subqueries within a materialized view.
+
+
+
+
+
+
+
 
 
 -- Some of the problems seen in MVs of other database 
