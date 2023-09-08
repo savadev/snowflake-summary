@@ -4565,7 +4565,10 @@ CREATE OR REPLACE DYNAMIC TABLE DEMO_DB.PUBLIC.EXAMPLE_DYNAMIC
 -- The Masks hide data according to the Roles in your 
 -- system.
 
-
+-- To DROP/recreate a given Masking Policy, first you need to unset
+-- it from all columns affected by it. If you don't want to recreate a 
+-- policy (because you'd need to reapply it to all the columns), you can
+-- alter only its body, with a special syntax.
 
 
 
@@ -4581,13 +4584,21 @@ CREATE OR REPLACE MASKING POLICY CONTROL_DB.MASKING_POLICIES.PHONE_POLICY
             ELSE '##-###-##'
             END;
 
--- Create Data Mask - Partial Mask (only a few of the values of the column are masked)
+-- Create Data Mask - Partial Value, Full Mask
+CREATE OR REPLACE MASKING POLICY CONTROL_DB.MASKING_POLICIES.PHONE_POLICY
+    AS (VAL VARCHAR) RETURNS VARCHAR ->
+        CASE
+            WHEN CURRENT_ROLE() IN ('ANALYST_FULL', 'ACCOUNTADMIN') THEN VAL
+            ELSE SUBSTRING(VAL,1,2) -- show only 2 first characters of phones
+            END;
+
+-- Create Data Mask - Full value, Partial Mask (only a few of the values of the column are masked)
 CREATE OR REPLACE MASKING POLICY CONTROL_DB.MASKING_POLICIES.PHONE_POLICY_PARTIAL
 AS 
 (VAL STRING) RETURNS STRING -> 
     CASE 
         WHEN CURRENT_ROLE() IN ('SYSADMIN') THEN 
-        CASE WHEN VAL='25-247-272-2878' THEN 'ABDEFGH' ELSE VAL -- Only this value will be redacted.
+        CASE WHEN VAL='25-247-272-2878' THEN 'ABDEFGH' ELSE VAL -- Only rows with this value in this columns will have the col's value redacted.
     END 
 ELSE '*******'
 END;
@@ -4599,17 +4610,29 @@ CREATE OR REPLACE TABLE DEMO_DB.PUBLIC.EMP_BASIC (
 );
 
 -- Apply Masking Policy on a specific column
-ALTER TABLE IF EXISTS DEMO_DB.PUBLIC.CUSTOMERS MODIFY COLUMN FULL_NAME 
-SET MASKING POLICY CONTROL_DB.MASKSING_POLICIES.PHONE_POLICY
+ALTER TABLE IF EXISTS DEMO_DB.PUBLIC.CUSTOMERS MODIFY COLUMN PHONE
+SET MASKING POLICY CONTROL_DB.MASKING_POLICIES.PHONE_POLICY
+
+
+-- To DROP/recreate a given Masking Policy, first you need to unset it from all columns affected by it
+ALTER TABLE IF EXISTS DEMO_DB.PUBLIC.CUSTOMERS MODIFY COLUMN PHONE
+UNSET MASKING POLICY;
+
+-- Drop a Masking Policy
+DROP MASKING POLICY CONTROL_DB.MASKING_POLICIES.PHONE_POLICY;
+
+-- Alter the Masking Policy's body, without recreating it:
+ALTER MASKING POLICY CONTROL_DB.MASKING_POLICIES.PHONE_POLICY
+SET BODY -> 
+         CASE
+            WHEN CURRENT_ROLE() IN ('ANALYST') THEN VAL
+            ELSE 'redacted' -- show 'redacted' in the column
+            END;
 
 
 
 
-
-
-
--- We can have the same effect by creating and sharing a Secure View, like this:
-
+-- We can have a similar effect, of masking, by creating and sharing a Secure View, like this:
 
 
 -- Create UDF to format phone values 
@@ -4637,7 +4660,12 @@ FROM DEMO_DB.PUBLIC.EMP_BASIC;
 
 
 -- The advantage of views is that you can define masking policies based
--- on multiple columns, as parameter (as we see in the example Syntax below),
+-- on multiple columns, as parameters (as we see in the example Syntax down below). An
+-- example of this kind of mask would be a condition of "mask all values of the 'address'
+-- column of rows whose name column's value is 'John'".
+
+
+
 
 
 -- However, views also have problems of their own, such as:
@@ -4650,6 +4678,9 @@ FROM DEMO_DB.PUBLIC.EMP_BASIC;
 
 -- 2) Each time we edit/recreate a view, we need to re-add GRANTs
 --    and SELECTs on this view, to the roles that need to use it.
+--    However, there is a way to avoid this, with the "COPY GRANTS"
+--    clause, that should be used with the "CREATE OR REPLACE SECURE VIEW"
+--    command (example seen below)
 
 -- 3) If we use Views/Secure Views, we are choosing to forgo the 
 --    caching features of Snowflake, generating additional costs 
@@ -4679,11 +4710,70 @@ FROM DEMO_DB.PUBLIC.EMP_BASIC;
 --    at all).
 
 -- 3) As they are objects, they can all be "stored" in a central place, like a Schema, like 
---    in the "CONTROL_DB".
+--    the schemas we should have in the "CONTROL_DB" database. Also, if we edit them, with the "body"
+--    syntax, the changes are reflected in all columns affected by them.
 
--- 4)
+-- 4) The data-masking will be "metadata-driven", much safer than code-driven protection.
 
--- 5)
 
--- 6) The data-masking will be "metadata-driven", much safer than code-driven protection.
 
+
+
+-- If you must use Views/Secure Views to mask your data (complex masks, multiple parameters/columns to choose 
+-- values to be masked), you can do so, but you should follow some best-use guidelines, as seen below.
+
+
+
+
+
+
+-- Advanced View Masking Syntax Examples (multiple parameters/column conditions for masks):
+
+
+
+-- First, define UDFs that will mask your data
+CREATE OR REPLACE FUNCTION "DEATH_CODE_DATE_REDACT_FUNCTION"("DIAGNOSIS_CODE" VARCHAR(16777216), "SERVICE_DATE" DATE) -- 2 params accepted as value
+RETURNS DATE
+LANGUAGE SQL
+AS '
+SELECT
+CASE WHEN CURRENT_ROLE() IN (''ANALYST'',''CONTRACTOR'',''ACCOUNTADMIN'') THEN
+        CASE WHEN DIAGNOSIS_CODE IN (''G9382'',''O312'',''O3120'',''O3120X1'',''7681'',''39791'') THEN  SERVICE_DATE + UNIFORM(5, 14, RANDOM()) 
+             ELSE SERVICE_DATE
+             END
+     ELSE SERVICE_DATE
+END SERVICE_DATE
+  ';
+
+-- Afterwards, create a Secure View that uses those UDFs
+CREATE OR REPLACE SECURE VIEW DEMO_DB.PUBLIC.EXAMPLE_SECURE_VIEW 
+AS 
+SELECT
+PATIENT_NAME,
+DOB,
+DIAGNOSIS,
+ADR_LINE_1,
+ADR_LINE_2,
+CITY,
+ZIP,
+STATE,
+POS,
+DEATH_CODE_DATE_REDACT_FUNCTION(DIAGNOSIS,SERVICE_START_DATE) SERVICE_START_DATE_REDACT, -- use UDF
+SERVICE_START_DATE,
+DEATH_CODE_DATE_REDACT_FUNCTION(DIAGNOSIS,SERVICE_END_DATE) SERVICE_END_DATE, -- use UDF
+SERVICE_END_DATE,
+PROVIDER_NAME
+FROM DEMO_DB.PUBLIC.PATIENT;
+
+-- Provide access to Secure View to all appropriate roles
+GRANT SELECT ON VIEW DEMO_DB.PUBLIC.EXAMPLE_SECURE_VIEW TO ROLE ANALYST;
+
+
+-- Recreate Secure View (edit/alter applied masking, for example) while 
+-- keeping current GRANTS to roles, with the "COPY GRANTS" clause:
+CREATE OR REPLACE SECURE VIEW DEMO_DB.PUBLIC.EXAMPLE_SECURE_VIEW COPY GRANTS -- the clause in question
+AS 
+SELECT
+<expression_and_masks>,
+<...>
+FROM DEMO_DB.PUBLIC.PATIENT;
