@@ -534,7 +534,6 @@ SET TAG TAG.GOVERNANCE.TRANSPORT='Indian airline';
 
 ALTER TABLE revenue.media.telecalls 
 MODIFY COLUMN "Country" 
-
 SET TAG tag.governance.keys='Country key';
 
 

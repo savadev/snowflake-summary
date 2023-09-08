@@ -5058,3 +5058,9 @@ SET MASKING POLICY COMMENTS_MASK;
 ALTER TABLE DEMO_DB.PUBLIC.EMP_BASIC 
 MODIFY COLUMN "Comments" 
 SET TAG TAGS.GOVERNANCE.COMMENTS_TAG='Hey there';
+
+
+
+
+
+-- "Classification", or "the auto-tagging made by Snowflake" feature
