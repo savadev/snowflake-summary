@@ -743,7 +743,7 @@ OUTPUT:
 
 
 created_on	                            name	            reserved	    database_name	schema_name	    cluster_by	rows	bytes	source_database_name	source_schema_name	source_table_name	refreshed_on	compacted_on	                                        owner	    invalid	invalid_reason	behind_by	comment	text	                                                                            is_secure	automatic_clustering	owner_role_type
-2023-08-24 07:02:17.453 -0700	CALL_CENTER_M_VIEW		                    DEMO_DB	            PUBLIC		                60	19,456	    DEMO_DB	                    PUBLIC	        CALL_CENTER	    2023-08-24      07:01:56.331 -0700	2023-08-24 07:01:56.331 -0700	ACCOUNTADMIN	false		                0s		        CREATE OR REPLACE MATERIALIZED VIEW CALL_CENTER_M_VIEW AS  SELECT * FROM CALL_CENTER;	false	            OFF	            ROLE
+2023-08-24 07:02:17.453 -0700	CALL_CENTER_M_VIEW		                    DEMO_DB	            PUBLIC		             60	    19,456	    DEMO_DB	                    PUBLIC	        CALL_CENTER	    2023-08-24      07:01:56.331 -0700	2023-08-24 07:01:56.331 -0700	ACCOUNTADMIN	false		                0s		        CREATE OR REPLACE MATERIALIZED VIEW CALL_CENTER_M_VIEW AS  SELECT * FROM CALL_CENTER;	false	            OFF	            ROLE
 
 
 

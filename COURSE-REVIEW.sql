@@ -3987,3 +3987,105 @@ ALTER TASK CONTROL_DB.TASKS.S3_TASK RESUME;
 -- Instead, MVs are separate objects that hold 
 -- query result data, data which is periodically 
 -- refreshed.
+
+-- Snowflake's Materialized Views are also
+-- different from conventional MVs, seen in other 
+-- database systems.
+
+-- This type of view is not recommended for use-cases 
+-- where you frequently update tables, as the MV update 
+-- costs will quickly pile up. We can see this cost in the 
+-- "Account" tab, as "MATERIALIZED_VIEW_MAINTENANCE",
+-- cost which is derived from the "MATERIALIZED_VIEW_REFRESH_HISTORY" function/view.
+-- Whenever the main table gets changed, there will be a cost to refresh your
+-- corresponding Materialized View.
+
+-- If our main table is huge and gets updated daily/on a two-day basis,
+-- MVs are not worth using.
+
+
+-- Some of the problems seen in MVs of other database 
+-- systems:
+
+-- 1) The periodical refreshes can lead to inconsistent/out-of-date
+-- results when you access them
+
+-- 2) DML operations, like INSERTs, UPDATEs and DELETEs, all 
+--    suffer from slowdown whenever MVs are used/created (because 
+--    the MV always needs to be updated along with the main table)
+
+
+
+--  Some of the advantages/quirks of Snowflake MVs:
+
+--  1) Optimal speed is always ensured (thanks to its caching)
+
+--  2) Query results are always current and consistent
+--     with main table
+
+--  3) Are easy to use, thanks to the maintenance service
+--     that constantly runs in the background (when a base table 
+--     is changed, the background service automatically updates our 
+--     MV to reflect the changes)
+
+--  4) Can be very pricey (they are additional objects, with their own storage costs)
+
+
+
+
+
+-- The "refreshing"/maintenance service is attached to our main table,
+-- and will frequently compare the MV with it.
+
+
+
+
+-- Example Syntax:
+
+
+-- Create Materialized View
+CREATE OR REPLACE MATERIALIZED VIEW DEMO_DB.PUBLIC.EMP_BASIC_MV
+AS 
+SELECT * FROM DEMO_DB.PUBLIC.EMP_BASIC
+
+-- "Behind by" column - shows us if the MV is already synced with the main table.
+SHOW MATERIALIZED VIEWS;
+
+-- Check the refreshing service attached to our main tables - entries will be present only if our main tables have been changed
+SELECT * FROM TABLE(SNOWFLAKE.INFORMATION_SCHEMA.MATERIALIZED_VIEW_REFRESH_HISTORY());
+
+-- output:
+created_on	                            name	            reserved	    database_name	schema_name	    cluster_by	rows	bytes	source_database_name	source_schema_name	source_table_name	refreshed_on	compacted_on	                                        owner	    invalid	invalid_reason	behind_by	comment	text	                                                                            is_secure	automatic_clustering	owner_role_type
+2023-08-24 07:02:17.453 -0700	CALL_CENTER_M_VIEW		                    DEMO_DB	            PUBLIC		             60	    19,456	    DEMO_DB	                    PUBLIC	        CALL_CENTER	    2023-08-24      07:01:56.331 -0700	2023-08-24 07:01:56.331 -0700	ACCOUNTADMIN	false		                0s		        CREATE OR REPLACE MATERIALIZED VIEW CALL_CENTER_M_VIEW AS  SELECT * FROM CALL_CENTER;	false	            OFF	            ROLE
+
+
+
+-- Materialized Views are a nice feature. However,
+-- We can create a quasi-MV with other Snowflake features,
+-- like Streams and Tasks, without using MVs and generating 
+-- excessive costs. This can be achieved mainly with Tasks,
+-- which we'll set to refresh our tables on different schedules (not 
+-- immediately, like the MVs do, but still regularly, like every two 
+-- days). The changes to our table, in turn, can be recognized by a Stream Object.
+
+
+-- To do that, the steps to be followed are:
+
+
+
+-- 1) Create a Source Table, Permanent, the table which will be used to create the fake MV
+
+-- 2) Create a Stream on top of that Source Table, to track changes applied to it
+
+-- 3) Create a Task, with a custom schedule (ex: every two days), which will have the condition
+--  'SYSTEM$STREAM_HAS_DATA()', that must be satisfied to have the Stream be consumed by its SQL statement
+
+-- 4) Inside the Task, the "MERGE" statement will be used. We must use it to avoid duplicates appearing in 
+--   our fake MV table.
+
+
+
+
+--  Obviously, this setup shown above is not the same as the one used by real Materialized Views, but it 
+--  can generally satisfy our business needs. The advantage in relation to MVs is that we can control how
+--  often the refreshes will run, scheduling them according to our needs.
