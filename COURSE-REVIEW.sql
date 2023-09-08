@@ -4866,7 +4866,7 @@ CREATE OR REPLACE DATABASE WEATHER WITH TAG (
     CONTROL_DB.TAGS.DB_DATA_SENSITIVITY = 'Green Data'
 );
 
--- Alter value of a tag, after it has already been applied to an object
+-- Alter value of a tag, after it has already been applied to an object (or if object has already been created)
 ALTER DATABASE REVENUE 
 SET TAG DEMO_DB.PUBLIC.DB_DATA_SENSITIVITY='Purple Data';
 
@@ -5007,6 +5007,10 @@ WHERE TAG_NAME='NAMES';
 -- to have "TAG-BASED MASKING POLICIES". If you use this
 -- feature, every time you apply a tag to a table/column,
 -- the assigned masking policy will be applied as well.
+-- If you set the Tag in a table, the Masking Policies assigned 
+-- to the Tag will attempt to "fit" inside the columns in your table
+-- (the "NUMBER_MASK" will try to fit into a "amount" column, the "COMMENTS_MASK"
+-- will try to fit into a "name" column, for example).
 
 
 
@@ -5014,5 +5018,34 @@ WHERE TAG_NAME='NAMES';
 
 
 
+-- Create Masking Policies
+CREATE OR REPLACE MASKING POLICY CONTROL_DB.MASKING_POLICIES.COMMENTS_MASK
+AS (VAL STRING) RETURNS STRING -> 
+CASE
+    WHEN CURRENT_ROLE() IN ('ACCOUNTADMIN') THEN '***MASKED***'
+    ELSE VAL
+END;
 
+CREATE OR REPLACE MASKING POLICY CONTROL_DB.MASKING_POLICIES.NUMBER_MASK
+AS (VAL NUMBER) RETURNS NUMBER -> 
+CASE
+    WHEN CURRENT_ROLE() IN ('ACCOUNTADMIN') THEN 000000
+    ELSE VAL
+END;
 
+CREATE OR REPLACE MASKING POLICY CONTROL_DB.MASKING_POLICIES.COMMENTS_MASK
+AS (VAL DATE) RETURNS DATE -> 
+CASE
+    WHEN CURRENT_ROLE() IN ('ACCOUNTADMIN') THEN '1990-01-01'
+    ELSE VAL
+END;
+
+-- Assign Masking Policies to Tags
+ALTER TAG TAGS.GOVERNANCE.GENERAL_TAG
+SET MASKING POLICY COMMENTS_MASK,
+    MASKING POLICY NUMBER_MASK
+    MASKING POLICY DATE_MASK;
+
+-- Applying Tag to a Table (Masking Policies will be applied as well)
+ALTER TABLE DEMO_DB.PUBLIC.EMP_BASIC
+SET TAG DEMO_DB.PUBLIC.GENERAL_TAG='Some table 1';
