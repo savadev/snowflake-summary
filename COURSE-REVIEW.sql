@@ -4003,6 +4003,36 @@ ALTER TASK CONTROL_DB.TASKS.S3_TASK RESUME;
 -- If our main table is huge and gets updated daily/on a two-day basis,
 -- MVs are not worth using.
 
+-- Snowflake MVs also have some query limitations. They cannot query:
+
+-- A materialized view.
+
+-- A non-materialized view.
+
+-- A UDTF (user-defined table function).
+
+-- A materialized view cannot include:
+
+-- UDFs (this limitation applies to all types of user-defined functions, including external functions).
+
+-- Window functions.
+
+-- HAVING clauses.
+
+-- ORDER BY clause.
+
+-- LIMIT clause.
+
+-- GROUP BY keys that are not within the SELECT list. All GROUP BY keys in a materialized view must be part of the SELECT list.
+
+-- GROUP BY GROUPING SETS.
+
+-- GROUP BY ROLLUP.
+
+-- GROUP BY CUBE.
+
+-- Nesting of subqueries within a materialized view.
+
 
 -- Some of the problems seen in MVs of other database 
 -- systems:
