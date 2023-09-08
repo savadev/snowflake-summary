@@ -3949,3 +3949,41 @@ SELECT * FROM CONTROL_DB.STREAMS.STREAM_X;
 
 -- Start Task
 ALTER TASK CONTROL_DB.TASKS.S3_TASK RESUME;
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+-- MODULE 25 --
+
+
+
+
+
+
+
+-- Materialized Views
+
+
+
+
+
+
+-- MVs are database objects that contain the
+-- result set of a given query.
+
+-- Unlike normal Views, MVs are not "windows"
+-- into your tables.
+
+-- Instead, MVs are separate objects that hold 
+-- query result data, data which is periodically 
+-- refreshed.
