@@ -6557,8 +6557,17 @@ $$
 -- The access to database objects is defined through privileges. Our 
 -- Roles should have granular privileges, from top to bottom.
 
+-- When a user is created, by default it has no role other than 'PUBLIC',
+-- and no warehouse access.
+
+-- With the "USAGE" privilege on a role, we can run queries on warehouses.
+-- However, if we wish to suspend/resume a given warehouse, we need the privilege 
+-- of "OPERATE" on top of it.
 
 
+
+-- In the Snowsight GUI, if you click in "Account" and then in "Roles",
+-- you get a nice diagram of all the roles in your system.
 
 
 
@@ -6609,18 +6618,56 @@ TABLE VIEW  STAGE   STORED PROCEDURE    UDF   OTHER SCHEMA OBJECTS
 --                    number of users in your account.
 
 -- B) SECURITYADMIN - Role that can manage any object grant globally,
---                    as well as create, monitor and manage users and roles.
+--                    as well as create, monitor and manage USERs and ROLEs
 --                    This role has the "MANAGE GRANTS" security privilege, and,
 --                    with it, is able to modify and revoke any grant. It also
---                    Inherits the privileges of the USERADMIN role.
+--                    Inherits the privileges of the USERADMIN role. However, it can't create warehouses, databases and schema-level objects.
 
 -- C) USERADMIN -     Role that is dedicated to USER and ROLE management only. This
---                    Role has the "CREATE USER" AND "CREATE ROLE" security privileges.
+--                    Role has the "CREATE USER" privilege (also can manage them), but
+--                    cannot create ROLEs, nor GRANT ROLEs into other ROLEs or USERs.
 
 
 -- D) SYSADMIN -    Role that has privileges to "CREATE WAREHOUSE" and "CREATE DATABASE"
 --                  (and other schema-level objects) in your system. If, as recommended, 
 --                  you create a role hierarchy that ultimately assigns all custom roles 
 --                  to the SYSADMIN ROLE, this role also has the ability to grant privileges
---                  on Warehouses, Databases and other objects to other roles.
+--                  on Warehouses, Databases and other objects to other roles. However, it can't create or manage users and roles.
 
+
+
+
+
+
+-- Lifecycle of a USER-ROLE:
+
+-- Can create users and assign roles to them
+USE ROLE SECURITYADMIN;
+
+-- Create User - no privileges at the beginning
+CREATE USER ARTHUR PASSWORD='ABC123';
+
+-- Create Role - no privileges at the beginning
+CREATE OR REPLACE ROLE DEVELOPER;
+
+-- Grant privileges to role
+GRANT USAGE ON DATABASE DEMO_DB TO ROLE DEVELOPER;
+GRANT USAGE ON SCHEMA PUBLIC TO ROLE DEVELOPER;
+GRANT SELECT ON TABLE EMP_BASIC TO ROLE DEVELOPER;
+
+
+-- Grant usage to Warehouse to role - can also be executed with "SYSADMIN" - OBS: "USAGE" is not the same as "OPERATE" (doesn't let you resume/suspend the warehouse)
+GRANT USAGE ON WAREHOUSE COMPUTE_WH TO ROLE DEVELOPER;
+-- REVOKE USAGE ON WAREHOUSE COMPUTE_WH FROM ROLE DEVELOPER;
+
+-- Grant role DEVELOPER to user ARTHUR
+GRANT ROLE DEVELOPER TO USER ARTHUR;
+
+-- Now user ARTHUR can use role 'DEVELOPER'
+USE ROLE DEVELOPER;
+
+-- Change to role ACCOUNTADMIN, to grant "CREATE DATABASE" permission (only allowed for ACCOUNTADMIN and SYSADMIN roles)
+USE ROLE ACCOUNTADMIN;
+
+-- Grant additional permissions (not recommended, to custom roles under SYSADMIN)
+GRANT CREATE DATABASE ON ACCOUNT TO ROLE DEVELOPER;
