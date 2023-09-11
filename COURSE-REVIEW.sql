@@ -5430,18 +5430,27 @@ TABLE(FLATTEN(COLUMN_FILL_RATE_OUTPUT_STURCTURE:key1)) AS F; -- "COLUMN_FILL_RAT
 
 
 
--- A) Caller Procedures 
+-- A) Caller Procedures - With Caller Procedures, we, as callers, have more restrictions. We get
+--                        Restricted by our own access privileges to tables and objects, and the 
+--                        session variables defined during our session always get used inside the
+--                        procedure. The procedure also uses our context (database, schema), besides 
+--                        the privileges and session variables.
 
 
 
+-- B) Owner Procedures - Owner Procedures are always executed considering the privileges/permissions
+--                       that the owner/role of the procedure had/has at the time it was created. The 
+--                       caller of the procedure, even if that role is not the owner itself, will inherit
+--                       the owner's role, during its execution. Information about this view is also blocked,
+--                       in the procedures view ('SHOW PROCEDURES' or 'DESC <procedure_name>'). 
+--                       Additionally, callers of this type of procedure cannot view, set or unset the owner's
+--                       session variables defined in it. It's also not possible for these callers to check out 
+--                       the queries/steps executed by this procedure, in the query history view.
 
-
-
-
-
--- B) Owner Procedures
-
-
+--                       If some of your roles needs to monitor these steps, he/she should receive additional permission,
+--                       by a GRANT of the privilege "MONITOR", like this:
+                        GRANT MONITOR ON WAREHOUSE COMPUTE_WH TO ROLE SANDBOX;
+                        REVOKE MONITOR ON WAREHOUSE COMPUTE_WH FROM ROLE SANDBOX;
 
 
 
