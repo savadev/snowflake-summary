@@ -6015,6 +6015,7 @@ CREATE OR REPLACE PROCEDURE COLUMN_FILL_RATE(TABLE_NAME varchar)
   ;
 
 
+CALL COLUMN_FILL_RATE('DEMO_DB.PUBLIC.EMP_BASIC');
 
 
 -- Output of above procedure:
@@ -6028,3 +6029,136 @@ C_PHONE	1
 C_ACCTBAL	1
 C_MKTSEGMENT	1
 C_COMMENT	1
+
+
+
+
+
+
+-- The above procedure assumes that everything always goes well; However, when running any code, error scenarios always are going to pop up.
+
+-- Some of the possible error scenarios, for this procedure, are:
+
+
+
+-- 1) Table is empty 
+
+-- 2) All records of table have "null" as one of the columns' as values.
+
+-- 3) Table passed as argument does not exist
+
+-- 4) Column data type is "JSON" or "VARIANT" (in this case, we should skip the checking of the fill rate of this column)
+
+-- 5) Procedure fails "in between", for no aparent reason (someone aborted the process, for example) - in this case, we want to see a transaction-like
+--    behavior (or all records get inserted, or no records get inserted at all. In other words, a roll back must occur).
+
+
+
+
+-- For these and other error cases, we need error handling in our procedures.
+
+-- For error handling, we can use try-catch blocks.
+
+
+
+
+
+
+
+
+-- Error handling, different cases
+CREATE OR REPLACE PROCEDURE COLUMN_FILL_RATE(TABLE_NAME VARCHAR)
+    RETURNS VARIANT -- NOT NULL
+    LANGUAGE JAVASCRIPT
+    EXECUTE AS CALLER
+    AS 
+    $$ 
+    var input_pattern = "SELECT RLIKE('" + TABLE_NAME + "', '[a-zA-Z0-9_]+')";
+
+    var statement0 = snowflake.createStatement({
+        sqlText: input_pattern
+    });
+
+
+    var result_set0 = statement0.execute();
+    result_set0.next();
+    reg_status = result_set0.getColumnValue(1);
+-- Handle "junk values passed as parameter" scenario
+    if(reg_status === false) {
+        return TABLE_NAME + " is not a table"; 
+    }
+
+
+-- Handle generic error scenarios
+    try {
+        var my_sql_command = "SELECT COUNT(*) AS CNT FROM " + TABLE_NAME + ";";
+
+        var statement1 = snowflake.createStatement({
+            sqlText: my_sql_command
+        });
+
+        var result_set1 = statement1.execute();
+
+        result_set1.next();
+    } catch (err) { -- generic error catch block
+
+        return "Failed: " + err;
+    }
+
+
+var cnt = result_set1.getColumnValue(1);
+
+-- Handle "Table has 0 records" scenario
+if (cnt === 0) {
+    return TABLE_NAME + " is empty "
+}
+
+
+try {
+    var my_sql_command2 = "SELECT * FROM" + TABLE_NAME + " LIMIT 10;";
+    var statement2 = snowflake.createStatement(
+        {
+            sqlText: my_sql_command2
+        }
+    );
+    var result_set2 = statement2.execute();
+
+} catch (err) { -- catch more generic errors
+    return 'Failed: ' + err;
+}
+
+
+var array_of_rows = [];
+var row_num = 0;
+
+var row_as_json = {};
+var column_name;
+
+table_as_json = { "key1" : array_of_rows };
+
+
+try {
+for (var col_num = 0; col_num < result_set2.getColumnCount(); col_num = col_num + 1) {
+var my_sql_command4 = "insert into Table_fill_rate values (:1 , :2)";
+
+var statement4 = snowflake.createStatement(
+    {  
+        sqlText: my_sql_command4,
+        binds: [table_as_json.key1[col_num].ColumnName,table_as_json.key1[col_num].column_value]
+    } 
+    );
+
+statement4.execute();
+}
+
+      } catch (err) { -- catch more generic errors
+        return: 'Failed: ' + err;
+      }
+    
+return table_as_json; 
+        
+$$
+
+
+
+CALL COLUMN_FILL_RATE('DEMO_DB.PUBLIC.EMP_BASIC');
