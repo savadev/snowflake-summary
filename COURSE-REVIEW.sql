@@ -1863,7 +1863,7 @@ FROM DEMO_DB.PUBLIC.REJECTED_RECORDS;
 -- in that approach, we use views to query the data stored in S3.
 
 -- However, there is an alternative approach, generaly better 
---than direct SELECTs and views, that is the usage of External Tables, 
+-- than direct SELECTs and views, that is the usage of External Tables, 
 -- to query that S3 data directly. This approach is much better because 
 -- it leverages the metadata feature of snowflake, to make the queries much 
 -- faster. 
