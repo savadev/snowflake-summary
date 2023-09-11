@@ -6059,14 +6059,86 @@ C_COMMENT	1
 
 -- For error handling, we can use try-catch blocks.
 
+-- It's also a good idea to set up an additional "ERROR_LOG" table, which can store the miscellaneous
+-- errors that might occur during our procedure's calls.
+
+-- One big problem with Snowflake is that it has no DEBUG console, which means it is hard for us to know
+-- which values are reaching our variables, at a given time, in the code (we cannot print values into the console). A way 
+-- to circumvent this is to constantly write "return" statements to return different values in our code, frequently recreating our 
+-- procedures to have an idea of what values are getting passed.
+
+
+-- However, there is a workaround, using an utility procedure, which will be shown below.
 
 
 
 
 
 
+-- In ETL job scenarios, with multiple steps, we tipically want that errors "bubble-up" during execution,
+-- so that the procedure itself "fails". If we don't maintain that behavior, the procedure
+-- will be treated as successful, which means that the downstream jobs, that receive its data,
+-- will be receiving wrong data, something that will lead to discrepant results.
 
--- Error handling, different cases
+-- Summing up:
+
+
+-- 1) When not running an ETL job, you can error handle like this:
+if (reg_status === false) {
+    return TABLE_NAME + " is not a table " -- This will make it so that your procedure ends up as "successful", even if you did have an error.
+}
+
+-- 2) When running an ETL job, you should error handle like this (throwing errors):
+try {
+    var my_sql_command = "SELECT COUNT(*) AS CNT FROM " + TABLE_NAME + ";";
+    var statement1 = snowflake.createStatement(
+        {
+            sqlText: my_sql_command
+        }
+    );
+    var result_set1 = statement1.execute();
+    result_set1.next();
+} catch (err) {
+    snowflake.execute({
+        sqlText: "INSERT INTO ERROR_LOG VALUES (?, ?, ?, ?)", -- With this, we LOG our error into a error_log table, before throwing the error itself to the console.
+        binds: [err.code, err.state, err.message, err.stackTraceTxt]
+    });
+
+    throw err.message; -- Actual throw of an error; will mark your procedure as "failed"
+}
+
+
+
+-- 2.5) Or like this (throwing inside the try block, manually):
+try {
+
+    var my_sql_command = "SELECT COUNT(*) AS CNT FROM " + TABLE_NAME + ";";
+    var statement1 = snowflake.createStatement(
+        {
+            sqlText: my_sql_command
+        }
+    );
+    var result_set1 = statement1.execute();
+
+
+    if (some_condition) {
+        throw 'example error'; --- This will also trigger the catch block.
+    }
+
+    result_set1.next();
+} catch (err) {
+    snowflake.execute({
+        sqlText: "INSERT INTO ERROR_LOG VALUES (?, ?, ?, ?)", -- With this, we LOG our error into a error_log table, before throwing the error itself to the console.
+        binds: [err.code, err.state, err.message, err.stackTraceTxt]
+    });
+
+    throw err.message;
+}
+
+
+
+
+-- Error handling, different cases/scenarios
 CREATE OR REPLACE PROCEDURE COLUMN_FILL_RATE(TABLE_NAME VARCHAR)
     RETURNS VARIANT -- NOT NULL
     LANGUAGE JAVASCRIPT
@@ -6155,10 +6227,58 @@ statement4.execute();
         return: 'Failed: ' + err;
       }
     
-return table_as_json; 
-        
+return table_as_json;       
 $$
 
-
-
+-- Call Procedure
 CALL COLUMN_FILL_RATE('DEMO_DB.PUBLIC.EMP_BASIC');
+
+
+
+
+
+
+
+
+
+-- There is a very useful utility procedure, which should be used during 
+-- procedure development, to log your variable's values into tables. It is shown below.
+
+
+
+-- Utility procedure, used to log values into a separate table, to guide us:
+SET do_log = true; -- /// if TRUE, we enable logging. With false, the logging is disabled.
+SET log_table = 'my_log_table'; -- // The name of the temp table where log messages will go.
+
+CREATE OR REPLACE PROCEDURE DO_LOG(MSG STRING) 
+    RETURNS STRING 
+    LANGUAGE JAVASCRIPT 
+    EXECUTE AS CALLER 
+    AS
+    $$
+
+    try {
+ -- Checks if we should log - checks for session variable "do_log = true";
+var statement = snowflake.createStatement({sqlText: `SELECT $do_log`}).execute();
+        } catch (err) {
+        return ''; -- "swallow" the error, variable not set, so do not log anything.
+                    }
+
+    statement.next();
+
+    if (statement.getColumnValue(1) == true) { -- if the value is anything other than true, don't log.
+        try {
+            snowflake.createStatement({
+                sqlText: 'CREATE TEMP TABLE IDENTIFIER ($log_table) IF NOT EXISTS (TIMESTAMP NUMBER, MSG STRING)'
+            }).execute();
+
+            snowflake.createStatement({
+                sqlText: 'INSERT INTO IDENTIFIER ($log_table) VALUES (:1, :2)',
+                binds: [Date.now(), MSG]
+            }).execute();
+        } catch (error) {
+            throw error;
+        }
+
+    }
+    $$;
