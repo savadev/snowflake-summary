@@ -6436,3 +6436,60 @@ statement4.execute();
     
 return table_as_json;       
 $$
+
+
+
+
+
+-- If needed, we can implement transactional (or all rows get inserted, or no rows at all) behavior in our procedures. We can do this 
+-- by using "BEGIN WORK", "ROLLBACK WORK" and "COMMIT WORK", in conjunction with the "Snowflake.execute()" method.
+
+
+-- Some general transaction guidelines, using Snowflake Stored Procedures:
+
+
+-- 1) Never forget the "START WORK" statement, to start your procedure.
+
+-- 2) Always run "COMMIT WORK" statements, to save your work, OUTSIDE of for loops/while loops
+
+-- 3) The "ROLLBACK WORK" statement typically is executed in catch blocks, as a error handling mechanism.
+
+
+
+-- Example:
+
+
+
+
+-- (inside Procedure's code):
+    snowflake.execute({
+        sqlText: "BEGIN WORK;"  -- Starts Transaction.
+    });
+
+
+   try{
+         for (var col_num = 0; col_num < result_set2.getColumnCount(); col_num = col_num + 1) {
+         
+         var my_sql_command4 = "insert into Table_fill_rate values (:1 , :2 ) "
+      
+         var statement4 = snowflake.createStatement( {sqlText: my_sql_command4,binds: [table_as_json.key1[col_num].ColumnName,table_as_json.key1[col_num].column_value]} );
+      
+          statement4.execute();
+         
+         }
+
+         snowflake.createStatement(
+            {
+                sqlText: "COMMIT WORK" -- Saves changes, if everything went right.
+            } 
+         ).execute(); 
+
+   } 
+   catch (err) {
+    
+    snowflake.execute({
+        sqlText: "ROLLBACK WORK;" -- Rolls back changes, if something went wrong.
+    });
+
+    throw "Failed: " + err;
+   }
