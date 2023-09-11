@@ -5381,7 +5381,11 @@ OBJECT                              Uint8Array
 --     of the latter's methods are present in the former's object as well.
 
 -- 12) The most important Result Set method is ".next()", and should always be called, to initialize the pointer in your Result Set (to go through 
--- the entire Result Set and run operations/transformations on top of its records).
+-- the entire Result Set and run operations/transformations on top of its records). If you don't call it, you'll receive an error ("ResultSet is empty or not prepared. call next() first.").
+
+-- 12.5) "result_set.next()" should be called after "statement.execute()".
+
+-- 12.6) Once you called "result_set.next()", you become able to call methods like "result_set1.getColumnName()" and "result_set1.getColumnValue()".
 
 -- 13) Argument names are case-insensitive in the SQL portion of the procedure's code, but case-sensitive 
 --     in the JavaScript parts.
