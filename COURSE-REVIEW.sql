@@ -5330,10 +5330,11 @@ SELECT * FROM SNOWFLAKE.ACCOUNT_USAGE.TAG_REFERENCES
 --     only throw errors during their compilation, when being executed.
 
 --  1) Snowflake doesn't allow the importing of JavaScript packages
--- into procedures.
+--     into procedures.
 
 --  2) Snowflake also doesn't allow you to use JavaScript native Objects
 --     like "Math.random()" (you must use SQL functions that yield similar results/effects).
+--     Snowflake Objects and their methods, however, are permitted.
 
 -- 3) The important Snowflake Objects, in a Stored Procedure are the Statement (
     -- created with 'Snowflake.createStatement()', and executed with 'statementName.execute()'), and
@@ -5378,6 +5379,18 @@ OBJECT                              Uint8Array
 
 -- 15) Because we are able to return only a single value/output, we should always think beforehand about the output structure of 
 --     our returned value/object (if we are returning a JSON value).
+
+-- 16) You most often will return JSON as a value (VARIANT), because FLOATS and VARCHARS are not that useful.
+
+-- 17) As you will most frequently return JSON values, the function that will be most useful to you is 
+--     "FLATTEN()", which will help you to parse your returned JSON values, like this:
+
+
+SELECT
+f.value:ColumnName,f.value:column_value
+FROM TABLE(RESULT_SCAN(LAST_QUERY_ID())) AS res,
+TABLE(FLATTEN(COLUMN_FILL_RATE_OUTPUT_STURCTURE:key1)) f -- "COLUMN_FILL_RATE_OUTPUT_STRUCURE"
+
 
 
 -- Snowflake Procedures are divided into 
