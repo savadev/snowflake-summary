@@ -5385,13 +5385,18 @@ OBJECT                              Uint8Array
 -- 17) As you will most frequently return JSON values, the function that will be most useful to you is 
 --     "FLATTEN()", which will help you to parse your returned JSON values, like this:
 
-
 SELECT
 f.value:ColumnName,f.value:column_value
 FROM TABLE(RESULT_SCAN(LAST_QUERY_ID())) AS res,
-TABLE(FLATTEN(COLUMN_FILL_RATE_OUTPUT_STURCTURE:key1)) f -- "COLUMN_FILL_RATE_OUTPUT_STRUCURE"
+TABLE(FLATTEN(COLUMN_FILL_RATE_OUTPUT_STURCTURE:key1)) AS F; -- "COLUMN_FILL_RATE_OUTPUT_STRUCTURE" is our procedure, being called. We access its key, "key1", with ":", and then with "FLATTEN" we transform the result. 
 
+-- 18) With "result_set.next()" combined with "while" (loops), we can keep calling the next JSON object/value/record 
+--     in this result_set; we can then position code inside the while loop, to run for loops transforming the data of each column 
+--     inside of each row.
 
+-- 19) "result_set.next()" returns a boolean, true or false, whether "there is still records to go through, in this_result_set".
+
+-- 20) Still, you shouldn't run "result_set.next()" at the beginning of your procedure, as it will skip to the next record in your result set.
 
 -- Snowflake Procedures are divided into 
 
@@ -5600,4 +5605,118 @@ var local_variable1 = argument1;  // Incorrect
 return local_variable2
 $$;
 
-call F('prad')
+call F('prad');
+
+
+
+-- Using while, "for loop" and control structures inside of Procedure:
+CREATE OR REPLACE PROCEDURE COLUMN_FILL_RATE_LOOPS(TABLE_NAME VARCHAR)
+RETURNS VARIANT NOT NULL
+LANGUAGE JAVASCRIPT
+AS
+$$
+var array_of_rows = [];
+row_as_json = {};
+
+var my_sql_command = "select count(*) ABC,count(*) DEF from "+ TABLE_NAME +";"
+var statement1 = snowflake.createStatement( {sqlText: my_sql_command} );
+var result_set1 = statement1.execute();
+
+while(result_set1.next()) { -- While (see point 18) - this "while" will keep running, as long as there's records to go through, in your table/result_set.
+
+    -- Put each row in a variable of type JSON. 
+
+    -- For each column in the row...
+
+    for (var col_num = 0; col_num < result_set1.getColumnCount(); col_num = col_num + 1) { -- For loop (see point 18)
+
+        var col_name = result_set1.getColumnName(col_num+1);
+        var col_value = result_set1.getColumnValue(col_num+1);
+
+        row_as_json = {
+            ColumnName: col_name,
+            column_value: col_value
+        }
+
+
+        array_of_rows.push(row_as_json);
+    }
+}
+
+
+var table_as_json = {
+    "key1": array_of_rows
+}
+
+return table_as_json;
+$$
+
+
+CALL COLUMN_FILL_RATE_LOOPS('DEMO_DB.PUBLIC.EMP_BASIC');
+
+
+
+-- Same code as above, but with steps
+CREATE OR REPLACE PROCEDURE COLUMN_FILL_RATE_LOOPS_IF_ELSE(TABLE_NAME varchar)
+  RETURNS VARIANT NOT NULL
+  LANGUAGE JAVASCRIPT
+  AS 
+  $$  
+  
+    var array_of_rows = [];
+    row_as_json = {};
+    
+
+
+    -- //// 1) SQL statement in JavaScript variable
+    var my_sql_command = "select * from "+ TABLE_NAME +" LIMIT 10;"
+
+    -- //// 2) Creation of Statement Object, using SQL command
+    var statement1 = snowflake.createStatement( {sqlText: my_sql_command} );
+
+    -- //// 3) Execution of Statement Object
+    var result_set1 = statement1.execute();
+    
+      while (result_set1.next())  {
+        -- Put each row in a variable of type JSON.
+ 
+        -- For each column in the row...
+        for (var col_num = 0; col_num < result_set1.getColumnCount(); col_num = col_num + 1) {
+          var col_name =result_set1.getColumnName(col_num+1);
+          var col_value = result_set1.getColumnValue(col_num+1);
+          
+          row_as_json = { ColumnName : col_name ,column_value : col_value}
+          
+          array_of_rows.push(row_as_json)
+          }
+          
+        }   
+        
+  table_as_json = { "key1" : array_of_rows };
+   
+   -- //// 4) Return of Result Set/other object, constructed using the Result Set (transformations)
+   return table_as_json; 
+  $$
+  ;
+
+
+-- Alternative steps to execute statement (simpler, but less control).
+CREATE OR REPLACE PROCEDURE CUSTOMERS_INSERT_PROCEDURE (CREATE_DATE varchar)
+    RETURNS STRING NOT NULL 
+    LANGUAGE JAVASCRIPT
+    AS 
+    $$
+
+    -- //// 1) SQL statement in JavaScript variable
+        var sql_command = 'INSERT INTO CUSTOMERS(CREATE_DATE) VALUES(:1);'
+        
+    -- //// 2) Using the Snowflake Global Object, execute SQL text directly (without creating Statement Object, or creating the Statement Object and immediately
+    -- executing it)
+        snowflake.execute(
+            {
+            sqlText: sql_command,
+            binds: [CREATE_DATE]
+            });
+    -- //// 3) Return of string value
+        return "Successfully executed.";
+    $$;
