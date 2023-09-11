@@ -6673,4 +6673,6 @@ USE ROLE DEVELOPER;
 USE ROLE ACCOUNTADMIN;
 
 -- Grant additional permissions (not recommended, to custom roles under SYSADMIN)
+-- If we do this, the role also gets the permissions to create schema, tables, views, stages, procedures, udfs, file formats and all other schema-level objects (very risky).
+-- Because of this reason, this privilege should not be granted to custom roles under SYSADMIN.
 GRANT CREATE DATABASE ON ACCOUNT TO ROLE DEVELOPER;
