@@ -5064,3 +5064,150 @@ SET TAG TAGS.GOVERNANCE.COMMENTS_TAG='Hey there';
 
 
 -- "Classification", or "the auto-tagging made by Snowflake" feature
+
+
+
+
+
+-- Feature used for data discovery, for suggesting tags that might be useful
+-- for your current Database distribution.
+
+
+
+
+-- Classification use-cases:
+
+
+
+-- 1) Personally identifiable information (sensitive information)
+
+
+-- 2) Access Control to data 
+
+
+-- 3) Policy Management 
+
+
+-- 4) Data Anonymization
+
+
+
+
+
+
+-- Classification categories:
+
+
+
+-- 1) Semantic Categories
+
+-- Semantic Cat. are things like:
+
+-- A) Names 
+
+-- B) Addresses
+
+-- C) Zip Codes
+
+-- D) Phone Numbers
+
+-- E) Age
+
+-- F) Gender
+
+-- G) URL
+
+
+
+
+-- 2) Privacy Categories
+
+
+-- A) Identifier 
+
+
+-- B) Quasi-identifier
+
+
+-- C) Sensitive
+
+
+
+
+
+-- When Snowflake auto-tags your database objects, via Classification,
+-- it tags with these categories, with these possible values.
+
+
+
+
+-- Example of Classification tagging:
+
+
+
+PRIVACY_CATEGORY='IDENTIFIER';
+
+SEMANTIC_CATEGORY='EMAIL';
+
+
+-- (tagged like this because emails are almost always used 
+-- as identifiers)
+
+
+
+PRIVACY_CATEGORY='IDENTIFIER';
+
+SEMANTIC_CATEGORY='NAME';
+
+
+-- (tagged like this because names are almost always used 
+-- as identifiers)
+
+
+
+PRIVACY_CATEGORY='SENSITIVE';
+
+SEMANTIC_CATEGORY='SALARY';
+
+-- (tagged like this because salary values aren't 
+-- identifiers, but are sensitive information)
+
+
+
+PRIVACY_CATEGORY='QUASI_IDENTIFIER';
+
+SEMANTIC_CATEGORY='AGE';
+
+
+-- (tagged like this because Ages aren't identifiers 
+-- by se, but can be used with other values in a row to 
+-- uniquely identify an individual) - ex: AGE + ZIP + GENDER
+
+
+
+
+
+-- Probable Quasi-Identifiers:
+
+
+-- QUASI_IDENTIFIER -->                AGE 
+--                                     GENDER 
+--                                     COUNTRY 
+--                                     DATE OF BIRTH 
+--                                     ETHNICITY 
+--                                     LATITTDE 
+--                                     LAT_LONG 
+--                                     LONGITUDE 
+--                                     MARITAL_sTATUS 
+--                                     OCCUPATION
+--                                     US_COUNTY 
+--                                     US_CITY
+--                                     YEAR_OF_BIRTH 
+
+
+
+
+-- Classification (auto-tagging) demo:
+
+
+
