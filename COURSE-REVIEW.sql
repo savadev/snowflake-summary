@@ -4,6 +4,10 @@
 
 -- MODULE 1 --
 
+
+-- M1 - Warehouses, Cost Monitoring Queries and General Syntax
+
+
 -- Warehouse means a group of nodes 
 -- and clusters which  helps to process the data.
 
@@ -155,7 +159,7 @@ SELECT * FROM SUPPLIER LIMIT 100;
 -- MODULE 2 --
 
 
--- Caching and Query Profile Analyzing
+-- M2 - Caching and Query Profile Analyzing
 
 
 
@@ -245,7 +249,7 @@ SET AUTO_SUSPEND=900;
 -- MODULE 3 --
 
 
--- Clustering -- 
+-- M3 - Clustering -- 
 
 
 -- Clustering Tips:
@@ -410,7 +414,7 @@ SELECT Y/X; ---- example of output: 0.15555555555 (high cardinality, 15%).
 -- MODULE 4 -- 
 
 
--- Improve performance without clustering --
+-- M4 - Improve performance without clustering --
 
 
 
@@ -446,7 +450,7 @@ SELECT SYSTEM$CLUSTERING_INFORMATION('CUSTOMER_ORDER_BY_EXAMPLE', '(C_MKTSEGMENT
 -- MODULE 5 -- 
 
 
--- Virtual Warehouses -- 
+-- M5 - Virtual Warehouses and Scaling Policies -- 
 
 
 
@@ -512,7 +516,7 @@ SELECT SYSTEM$CLUSTERING_INFORMATION('CUSTOMER_ORDER_BY_EXAMPLE', '(C_MKTSEGMENT
 
 
 
--- Performance Tuning --
+-- M6 - Performance Tuning --
 
 
 
@@ -657,7 +661,7 @@ SHOW PARAMETERS; -- "LOCK_TIMEOUT" -> is the amount of time allowed(1 hour and 1
 
 
 
--- Snowsight (Graphical User Interface) and Dashboards
+-- M7 - Snowsight (Graphical User Interface) and Dashboards
 
 
 
@@ -832,7 +836,7 @@ and is directly related to the size of your warehouse."
 
 
 
--- Query Acceleration Service (QAS)
+-- M8 - Query Acceleration Service (QAS)
 
 
 
@@ -939,7 +943,7 @@ ORDER BY eligible_query_acceleration_time DESC;
 
 
 
--- Search Optimization Service (SOS) --
+-- M9 - Search Optimization Service (SOS) --
 
 
 
@@ -1050,7 +1054,7 @@ select * from DEMO_DB.PUBLIC.LINEITEM_NO_SOS where L_orderkey = '4509487233'; --
 
 
 
--- Load data - Intro 
+-- M10 - Load data - Intro 
 
 
 
@@ -1078,6 +1082,8 @@ snowsql -a <account-identifier> -u <username_in_the_account>  -- "account-identi
 
 -- MODULE 11 -- 
 
+
+-- M11 - COPY preparations (auxiliary objects)
 
 -- Before loading data into our tables, we must create the auxiliary objects that will be used with the COPY command.
 -- As a best practice, we should create a dedicated database, where all these objects will be stored, a central place.
@@ -1754,7 +1760,7 @@ REMOVE @DEMO_DB.PUBLIC.%EMP_BASIC; -- in Worksheets
 -- MODULE 12 -- 
 
 
--- Basic Error Handling During COPY command process --
+-- M12 - Basic Error Handling During COPY command process --
 
 
 -- In real-life scenarios, it is extremely common 
@@ -1848,7 +1854,7 @@ FROM DEMO_DB.PUBLIC.REJECTED_RECORDS;
 
 
 
--- External Tables --
+-- M13 - External Tables --
 
 
 -- In the MODULE 11, at the beginning, there is an example 
@@ -2051,7 +2057,7 @@ WHERE department='employees03' -- usage of partitions
 
 
 
--- COPY command options 
+-- M14 - COPY command options 
 
 
 
@@ -2163,7 +2169,7 @@ SELECT * FROM SNOWFLAKE.ACCOUNT_USAGE.COPY_HISTORY;
 
 
 
--- Load Unstructured Data (JSON, XML) -- 
+-- M15 - Load Unstructured Data (JSON, XML) -- 
 
 
 
@@ -2600,7 +2606,12 @@ LATERAL FLATTEN(to_array(xml_demo.v:"$")) AS auction_announcement;
 
 
 
--- MODULE 16 - Snowpipe -- 
+-- MODULE 16 --
+
+
+
+
+-- M16 - Snowpipe 
 
 
 
@@ -2774,7 +2785,7 @@ FROM TABLE(SNOWFLAKE.INFORMATION_SCHEMA.COPY_HISTORY(
 
 
 
--- Data Sharing
+-- M17 - Data Sharing
 
 
 
@@ -2914,7 +2925,7 @@ CREATE DATABASE SHARED_DATABASE FROM SHARE <producer_account_id>.EXAMPLE_SHARE;
 
 
 
--- Time Travel
+-- M18 - Time Travel
 
 
 
@@ -3030,7 +3041,7 @@ UNDROP DATABASE DEMO_DB;
 
 
 
--- Fail-safe
+-- M19 - Fail-safe
 
 
 
@@ -3092,7 +3103,7 @@ SELECT * FROM <database_name>.INFORMATION_SCHEMA.TABLE_STORAGE_METRICS;
 
 
 
--- Cloning
+-- M20 - Cloning
 
 
 
@@ -3232,7 +3243,7 @@ SWAP WITH DEMO_DB.PUBLIC.EMP_DEV;
 
 
 
--- Data Sampling
+-- M21 - Data Sampling
 
 
 
@@ -3352,7 +3363,7 @@ SELECT * FROM DEMO_DB.PUBLIC.EMP_BASIC SAMPLE SYSTEM(3) SEED (52);
 
 
 
--- Tasks
+-- M22 - Tasks
 
 
 
@@ -3534,7 +3545,7 @@ ALTER TASK CONTROL_DB.TASKS.TASK_7 SUSPEND;
 
 
 
--- Streams 
+-- M23 - Streams 
 
 
 
@@ -3817,7 +3828,7 @@ SELECT * FROM TABLE(SNOWFLAKE.INFORMATION_SCHEMA.TASK_HISTORY());
 
 
 
--- Continuous data load, with Streams and Tasks
+-- M24 - Continuous data load, with Streams and Tasks
 
 
 
@@ -3972,7 +3983,7 @@ ALTER TASK CONTROL_DB.TASKS.S3_TASK RESUME;
 
 
 
--- Materialized Views
+-- M25 - Materialized Views
 
 
 
@@ -4147,7 +4158,7 @@ created_on	                            name	            reserved	    database_na
 
 
 
--- Dynamic Tables 
+-- M26 - Dynamic Tables 
 
 
 
@@ -4534,7 +4545,7 @@ CREATE OR REPLACE DYNAMIC TABLE DEMO_DB.PUBLIC.EXAMPLE_DYNAMIC
 
 
 
--- Data Masking -- 
+-- M27 - Data Masking -- 
 
 
 
@@ -4796,7 +4807,7 @@ FROM DEMO_DB.PUBLIC.PATIENT;
 
 
 
--- Tagging -- 
+-- M28 - Tagging -- 
 
 
 
@@ -5317,7 +5328,7 @@ SELECT * FROM SNOWFLAKE.ACCOUNT_USAGE.TAG_REFERENCES
 
 
 
--- Stored Procedures
+-- M29 - Stored Procedures
 
 
 
