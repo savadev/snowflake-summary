@@ -6570,6 +6570,9 @@ $$
 -- you get a nice diagram of all the roles in your system.
 
 
+-- In regular (i.e. non-managed schemas), object owners (creators of tables, schemas, databases),
+-- roles that have ownership over objects, can grant access on these objects to any roles, if they 
+-- wish to do so.
 
 
 -- Snowflake systems are always divided like this:
@@ -6676,3 +6679,81 @@ USE ROLE ACCOUNTADMIN;
 -- If we do this, the role also gets the permissions to create schema, tables, views, stages, procedures, udfs, file formats and all other schema-level objects (very risky).
 -- Because of this reason, this privilege should not be granted to custom roles under SYSADMIN.
 GRANT CREATE DATABASE ON ACCOUNT TO ROLE DEVELOPER;
+
+
+
+
+
+
+-- Managed Schema --
+
+
+-- In regular (i.e. non-managed schemas), object owners (creators of tables, schemas, databases),
+-- roles that have ownership over objects, can grant access on these objects to any roles, if they 
+-- wish to do so.
+
+
+-- To remedy this access control freedom and to have better security, managed schemas were created.
+-- With Managed Schemas, object owners lose the ability to GRANT access to other roles. Only the Schema 
+-- Owner (the role with "OWNERSHIP" privilege on the Schema itself) or a role with the MANAGE GRANTS 
+-- privilege can grant privileges on objects in the Schema.
+
+-- In Managed Schemas, therefore, the most important character is the Schema Owner.
+
+
+
+-- To use these Managed Schemas adequately, we must follow some guidelines:
+
+
+
+-- 1) The role that creates the objects, inside of the Schema,
+--    must not be the Schema Owner, but must have the privileges 
+--    to create objects in that Schema.
+
+-- 2) The Schema Owner is the one that will run "GRANTS" to give
+--    access to other roles, to this Schema's objects.
+
+
+
+-- The Role that creates and manages Roles
+USE ROLE SECURITYADMIN; 
+
+-- Create the Role responsible for the objects' creation
+CREATE OR REPLACE ROLE MY_ROLE_CHILD_1;
+
+-- Connect the child role to the parent role (Schema Owner)
+GRANT ROLE MY_ROLE_CHILD_1 TO ROLE MY_ROLE;
+
+-- Create Schema as Managed Schema
+CREATE OR REPLACE SCHEMA MY_SCHEMA WITH MANAGED ACCESS;
+
+-- Convert Schema into Managed Schema (only ACCOUNTADMIN and SECURITYADMIN can execute this statement, because only they have "GLOBAL MANAGE GRANTS")
+ALTER SCHEMA MY_DB.MY_SCHEMA 
+ENABLE MANAGED ACCESS;
+
+-- Role that has the permission to GRANT USAGE to other roles (but does not actually create the database objects)
+USE ROLE MY_ROLE; 
+
+-- Grant needed "create"/manage schema objects privilege to the object creator role (but not the GRANTS privilege, that is exclusive to the Schema Owner)
+GRANT USAGE ON DATABASE MY_DB TO ROLE MY_ROLE_CHILD_1;
+GRANT USAGE ON SCHEMA MY_DB.MY_SCHEMA_2 TO ROLE MY_ROLE_CHILD_1;
+GRANT ALL PRIVILEGES ON SCHEMA MY_SCHEMA_2 TO ROLE MY_CHILD_1;
+
+-- Change to "MY_ROLE_CHILD_1", to test if we can manage created objects inside of schema.
+USE ROLE MY_ROLE_CHILD_1;
+
+-- Even "DROP TABLE" works, because "MY_ROLE_CHILD_1" has ownership over it.
+DROP TABLE MY_DB.MY_SCHEMA_2.EMP;
+
+-- Now this won't work, because "MY_ROLE_CHILD_1" is not the Schema owner, just the object creator inside of it.
+GRANT USAGE TO SCHEMA MY_DB.MY_SCHEMA_2 TO ROLE SOME_ROLE;
+
+-- We change to the Schema Owner role
+USE ROLE MY_ROLE;
+
+-- Now we can give GRANTs to other roles, because we are in the Schema Owner Role.
+GRANT USAGE ON SCHEMA MY_DB.MY_SCHEMA_2 TO ROLE SOME_ROLE;
+GRANT USAGE ON TABLE MY_DB.MY_SCHEMA_2.EMP TO ROLE SOME_ROLE;
+GRANT SELECT ON TABLE MY_DB.MY_SCHEMA_2.EMP TO ROLE SOME_ROLE;
+
+
