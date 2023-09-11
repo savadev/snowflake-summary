@@ -6546,3 +6546,81 @@ $$
 
 
 -- M30 - Access Control
+
+
+
+
+
+
+
+
+-- The access to database objects is defined through privileges. Our 
+-- Roles should have granular privileges, from top to bottom.
+
+
+
+
+
+
+
+-- Snowflake systems are always divided like this:
+
+
+
+
+                     ORGANIZATION 
+                        
+                  ACCOUNT-LEVEL OBJECTS
+
+USER ROLE  DATABASE    WAREHOUSE     OTHER ACCOUNT OBJECTS
+                        
+
+                  SCHEMA-LEVEL OBJECTS
+
+TABLE VIEW  STAGE   STORED PROCEDURE    UDF   OTHER SCHEMA OBJECTS 
+
+
+
+
+
+
+
+
+-- The Snowflake default roles, on the other hand, are structured like this:
+
+
+                        ACCOUNTADMIN 
+
+            SECURITYADMIN           SYSADMIN 
+
+              USERADMIN            CUSTOM ROLES
+
+
+
+
+
+-- General Role characteristics:
+
+
+
+-- A) ACCOUNTADMIN -  Role that encapsulates the SYSADMIN and SECURITYADMIN
+--                    system-defined roles. It is the top-level role in the system,
+--                    and should be granted to only a limited/controlled 
+--                    number of users in your account.
+
+-- B) SECURITYADMIN - Role that can manage any object grant globally,
+--                    as well as create, monitor and manage users and roles.
+--                    This role has the "MANAGE GRANTS" security privilege, and,
+--                    with it, is able to modify and revoke any grant. It also
+--                    Inherits the privileges of the USERADMIN role.
+
+-- C) USERADMIN -     Role that is dedicated to USER and ROLE management only. This
+--                    Role has the "CREATE USER" AND "CREATE ROLE" security privileges.
+
+
+-- D) SYSADMIN -    Role that has privileges to "CREATE WAREHOUSE" and "CREATE DATABASE"
+--                  (and other schema-level objects) in your system. If, as recommended, 
+--                  you create a role hierarchy that ultimately assigns all custom roles 
+--                  to the SYSADMIN ROLE, this role also has the ability to grant privileges
+--                  on Warehouses, Databases and other objects to other roles.
+
