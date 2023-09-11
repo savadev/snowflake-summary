@@ -5340,6 +5340,16 @@ SELECT * FROM SNOWFLAKE.ACCOUNT_USAGE.TAG_REFERENCES
 --  0) Stored Procedures never throw errors while they are being created; they will
 --     only throw errors during their compilation, when being executed.
 
+-- 0.5) When running "SHOW PROCEDURES", the view doesn't give you any details about 
+--      whether a given procedure is a "Caller" or "Owner" procedure. To remediate this 
+--      issue, one best-practice is to add "caller" and "owner" to your procedures, depending 
+--      on their type, like this:
+
+        CREATE OR REPLACE STORED PROCEDURE RECREATE_USERS_CALLER(ARG STRING)
+        ...;
+        CREATE OR REPLACE STORED PROCEDURE RECREATE_USERS_OWNER(ARG STRING)
+        ...;
+
 --  1) Snowflake doesn't allow the importing of JavaScript packages
 --     into procedures.
 
@@ -5462,6 +5472,11 @@ CREATE OR REPLACE PROCEDURE COLUMN_COUNT(TABLE_NAME VARCHAR)
 
     return row_count;
     $$;
+
+
+
+-- Show all procedures 
+SHOW PROCEDURES;
 
 
 -- Call/Execute Stored Caller Procedure 
