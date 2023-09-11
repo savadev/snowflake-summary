@@ -5798,7 +5798,7 @@ CALL COLUMN_FILL_RATE_LOOPS('DEMO_DB.PUBLIC.EMP_BASIC');
 
 
 
--- Alternative steps to execute statement (simpler, but less control).
+-- Alternative steps to execute statement (simpler, 3 steps in one, but less control).
 CREATE OR REPLACE PROCEDURE CUSTOMERS_INSERT_PROCEDURE (CREATE_DATE VARCHAR)
     RETURNS STRING NOT NULL 
     LANGUAGE JAVASCRIPT
