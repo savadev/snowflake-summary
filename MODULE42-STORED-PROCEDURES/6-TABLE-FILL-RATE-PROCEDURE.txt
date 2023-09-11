@@ -406,7 +406,7 @@ EX:
 
 
 
-ar my_sql_command_3 = "SELECT ROUND(COUNT(*)/" + CNT + " , 2") AS ROW_COUNT FROM " + TABLE_NAME + " WHERE " + COL_NAME + " IS NOT NULL;";
+var my_sql_command_3 = "SELECT ROUND(COUNT(*)/" + CNT + " , 2") AS ROW_COUNT FROM " + TABLE_NAME + " WHERE " + COL_NAME + " IS NOT NULL;";
 
 
 
