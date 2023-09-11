@@ -6242,11 +6242,13 @@ CALL COLUMN_FILL_RATE('DEMO_DB.PUBLIC.EMP_BASIC');
 
 
 -- There is a very useful utility procedure, which should be used during 
--- procedure development, to log your variable's values into tables. It is shown below.
+-- procedure development, inside your other procedures,
+--  to log your variable's values into tables. It is shown below.
 
 
 
--- Utility procedure, used to log values into a separate table, to guide us:
+-- Utility procedure, used to log values into a separate table, to guide us. 'MSG' parameter is the value to be logged,
+-- and 'TIMESTAMP' is the moment the value ocurred.
 SET do_log = true; -- /// if TRUE, we enable logging. With false, the logging is disabled.
 SET log_table = 'my_log_table'; -- // The name of the temp table where log messages will go.
 
@@ -6282,3 +6284,155 @@ var statement = snowflake.createStatement({sqlText: `SELECT $do_log`}).execute()
 
     }
     $$;
+
+
+
+-- Usage:
+
+-- 1) We start by defining a variable as an empty string. We'll gradually fill up this 
+--    variable with the "MSG" values we get during our procedure's execution.
+
+-- 2) We call "do_log(<some_variable>)" with the variables whose values we want to know, in our code.
+
+-- 3) A temporary table, "my_log_table", will be created, and each row will be a log of the values got during one execution of 
+--    your procedure.
+
+
+
+
+-- Example:
+CREATE OR REPLACE PROCEDURE COLUMN_FILL_RATE(TABLE_NAME VARCHAR)
+    RETURNS VARIANT NOT NULL
+    LANGUAGE JAVASCRIPT
+    EXECUTE AS CALLER
+    AS 
+    $$ 
+
+    var accumulated_log_messages = ''; -- We will fill up this variable with the values of the variables we want to know about.
+
+     function log(msg) { -- we define this function for ease of use, to be able to call this extra procedure multiple times, in this procedure.
+        snowflake.createStatement( { sqlText: `call do_log(:1)`, binds:[msg] } ).execute();
+        }
+
+
+    var input_pattern = "SELECT RLIKE('" + TABLE_NAME + "', '[a-zA-Z0-9_]+')";
+
+    var statement0 = snowflake.createStatement({
+        sqlText: input_pattern
+    });
+
+
+    var result_set0 = statement0.execute();
+    result_set0.next();
+    reg_status = result_set0.getColumnValue(1);
+
+-- add one value into the accumulated_log_messages, so we can check this value, later, in the my_log_table table
+    accumulated_log_messages += 'regular expression result: '+reg_status+ '\n';
+
+
+
+-- Handle "junk values passed as parameter" scenario
+    if(reg_status === false) {
+        return TABLE_NAME + " is not a table"; 
+    }
+
+
+-- Handle generic error scenarios
+    try {
+        var my_sql_command = "SELECT COUNT(*) AS CNT FROM " + TABLE_NAME + ";";
+
+        var statement1 = snowflake.createStatement({
+            sqlText: my_sql_command
+        });
+
+        var result_set1 = statement1.execute();
+
+        result_set1.next();
+    } catch (err) { -- generic error catch block
+
+      snowflake.execute({
+      sqlText: `insert into error_log VALUES (?,?,?,?)`,
+      binds: [err.code, err.state, err.message, err.stackTraceTxt]
+      });
+ 
+      if (accumulated_log_messages != '') {
+        log(accumulated_log_messages) -- log accumulated messages/create record in "my_log_table"
+        }
+      throw err.message; -- end execution
+    }
+
+
+var cnt = result_set1.getColumnValue(1);
+
+-- Handle "Table has 0 records" scenario
+if (cnt === 0) {
+    return TABLE_NAME + " is empty "
+}
+-- add one more value into the accumulated_log_messages, so we can check this value, later, in the my_log_table table
+accumulated_log_messages += 'count of records: '+cnt+ '\n';
+
+
+try {
+    var my_sql_command2 = "SELECT * FROM" + TABLE_NAME + " LIMIT 10;";
+    var statement2 = snowflake.createStatement(
+        {
+            sqlText: my_sql_command2
+        }
+    );
+    var result_set2 = statement2.execute();
+
+} catch (err) { -- catch more generic errors
+      snowflake.execute({
+      sqlText: `insert into error_log VALUES (?,?,?,?)`
+      ,binds: [err.code, err.state, err.message, err.stackTraceTxt]
+      });
+    
+    if (accumulated_log_messages != '') {
+     -- log accumulated messages/create record in "my_log_table"
+        log(accumulated_log_messages)
+        }
+
+    throw "Failed: when trying to get schema of the table"; -- end execution
+}
+
+-- add one more value into the accumulated_log_messages, so we can check this value, later, in the my_log_table table
+accumulated_log_messages += 'column type of result set 2: '+result_set2.getColumnType(1)+ '\n';
+
+var array_of_rows = [];
+var row_num = 0;
+
+var row_as_json = {};
+var column_name;
+
+-- add one more value into the accumulated_log_messages, so we can check this value, later, in the my_log_table table
+accumulated_log_messages += 'array of records: '+array_of_rows+ '\n'; 
+
+table_as_json = { "key1" : array_of_rows };
+
+
+try {
+for (var col_num = 0; col_num < result_set2.getColumnCount(); col_num = col_num + 1) {
+var my_sql_command4 = "insert into Table_fill_rate values (:1 , :2)";
+
+var statement4 = snowflake.createStatement(
+    {  
+        sqlText: my_sql_command4,
+        binds: [table_as_json.key1[col_num].ColumnName,table_as_json.key1[col_num].column_value]
+    } 
+    );
+
+statement4.execute();
+}
+
+      } catch (err) { -- catch more generic errors
+        return: 'Failed: ' + err;
+      } 
+      -- this finally is super important. It will always get executed, even if no errors have occurred.
+      finally { -- if no errors occurred, still log string values into my_log_table.
+        if (accumulated_log_messages != '') {
+        log(accumulated_log_messages)
+        }
+      }
+    
+return table_as_json;       
+$$
