@@ -5436,21 +5436,37 @@ TABLE(FLATTEN(COLUMN_FILL_RATE_OUTPUT_STURCTURE:key1)) AS F; -- "COLUMN_FILL_RAT
 --                        procedure. The procedure also uses our context (database, schema), besides 
 --                        the privileges and session variables.
 
+--                        Caller Procedures are "like pets". They can use only the things available to them,
+--                        to the role that is using the procedure. As pets, they can only stay in our house (our 
+--                        context), and can't invade the houses of our neighbors (other databases/schemas/tables).
+
+--                        They should be used for cases like "Get column fill rate of a table", "remove duplicate records from table",
+--                        and for procedures that implement complex business logic (better than owner procedures, for that, as they 
+--                        consider the context in which they are executed, and can be reutilized).
 
 
--- B) Owner Procedures - Owner Procedures are always executed considering the privileges/permissions
---                       that the owner/role of the procedure had/has at the time it was created. The 
---                       caller of the procedure, even if that role is not the owner itself, will inherit
---                       the owner's role, during its execution. Information about this view is also blocked,
---                       in the procedures view ('SHOW PROCEDURES' or 'DESC <procedure_name>'). 
---                       Additionally, callers of this type of procedure cannot view, set or unset the owner's
---                       session variables defined in it. It's also not possible for these callers to check out 
---                       the queries/steps executed by this procedure, in the query history view.
 
---                       If some of your roles needs to monitor these steps, he/she should receive additional permission,
---                       by a GRANT of the privilege "MONITOR", like this:
-                        GRANT MONITOR ON WAREHOUSE COMPUTE_WH TO ROLE SANDBOX;
-                        REVOKE MONITOR ON WAREHOUSE COMPUTE_WH FROM ROLE SANDBOX;
+-- B) Owner Procedures -  Owner Procedures are always executed considering the privileges/permissions
+--                        that the owner/role of the procedure had/has at the time it was created. The 
+--                        caller of the procedure, even if that role is not the owner itself, will inherit
+--                        the owner's role, during its execution. Information about this view is also blocked,
+--                        in the procedures view ('SHOW PROCEDURES' or 'DESC <procedure_name>'). 
+--                        Additionally, callers of this type of procedure cannot view, set or unset the owner's
+--                        session variables defined in it. It's also not possible for these callers to check out 
+--                        the queries/steps executed by this procedure, in the query history view.
+ 
+--                        Use-cases for Owner Procedures are: "get number of permanent and transient tables in 
+--                        a database", "get tables with more fail-safe storage" and "get the number of unused tables",
+--                        and any other repetitive tasks, that can be executed in your stead, by other roles impersonating
+--                        your role.
+ 
+ 
+ 
+--                        If some of your roles needs to monitor the procedure's queries/steps, 
+--                        he/she should receive additional permission, by a GRANT of the privilege "MONITOR",
+--                        like this:
+                          GRANT MONITOR ON WAREHOUSE COMPUTE_WH TO ROLE SANDBOX;
+                          REVOKE MONITOR ON WAREHOUSE COMPUTE_WH FROM ROLE SANDBOX;
 
 
 
