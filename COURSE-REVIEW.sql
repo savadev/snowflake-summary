@@ -5454,6 +5454,7 @@ CALL COLUMN_COUNT(DEMO_DB.PUBLIC.EMP_BASIC); -- returns something like '10.000';
 CREATE OR REPLACE PROCEDURE COLUMN_FILL_RATE_STATEMENT_OBJECT(TABLE_NAME VARCHAR)
     RETURNS VARIANT NOT NULL 
     LANGUAGE JAVASCRIPT
+    EXECUTE AS CALLER -- Caller Procedure
     $$
     var my_sql_command = 'SELECT COUNT(*) FROM ' + TABLE_NAME;
 
@@ -5595,6 +5596,7 @@ CALL COLUMN_FILL_RATE_1('DEMO_DB.PUBLIC.CUSTOMER');
 CREATE OR REPLACE PROCEDURE F(ARGUMENT1 VARCHAR)
 RETURNS VARCHAR
 LANGUAGE JAVASCRIPT
+EXECUTE AS CALLER -- Caller Procedure
 AS
 $$
 
@@ -5613,6 +5615,7 @@ call F('prad');
 CREATE OR REPLACE PROCEDURE COLUMN_FILL_RATE_LOOPS(TABLE_NAME VARCHAR)
 RETURNS VARIANT NOT NULL
 LANGUAGE JAVASCRIPT
+EXECUTE AS CALLER -- Caller Procedure
 AS
 $$
 var array_of_rows = [];
@@ -5644,7 +5647,7 @@ while(result_set1.next()) { -- While (see point 18) - this "while" will keep run
 }
 
 
-var table_as_json = {
+var table_as_json = { -- JSON object
     "key1": array_of_rows
 }
 
@@ -5657,9 +5660,10 @@ CALL COLUMN_FILL_RATE_LOOPS('DEMO_DB.PUBLIC.EMP_BASIC');
 
 
 -- Same code as above, but with steps
-CREATE OR REPLACE PROCEDURE COLUMN_FILL_RATE_LOOPS_IF_ELSE(TABLE_NAME varchar)
+CREATE OR REPLACE PROCEDURE COLUMN_FILL_RATE_LOOPS(TABLE_NAME varchar)
   RETURNS VARIANT NOT NULL
   LANGUAGE JAVASCRIPT
+  EXECUTE AS CALLER -- Caller Procedure
   AS 
   $$  
   
@@ -5692,18 +5696,95 @@ CREATE OR REPLACE PROCEDURE COLUMN_FILL_RATE_LOOPS_IF_ELSE(TABLE_NAME varchar)
           
         }   
         
-  table_as_json = { "key1" : array_of_rows };
+  table_as_json = { "key1" : array_of_rows }; -- JSON object
    
    -- //// 4) Return of Result Set/other object, constructed using the Result Set (transformations)
    return table_as_json; 
   $$
   ;
 
+-- Procedure call
+CALL COLUMN_FILL_RATE_LOOPS('DEMO_DB.PUBLIC.EMP_BASIC');
+
+
+
+-- Output of above procedure(JSON, single value, object):
+{
+  "key1": [
+    {
+      "ColumnName": "C_CUSTKEY",
+      "column_value": 30001
+    },
+    {
+      "ColumnName": "C_NAME",
+      "column_value": "Customer#000030001"
+    },
+    {
+      "ColumnName": "C_ADDRESS",
+      "column_value": "Ui1b,3Q71CiLTJn4MbVp,,YCZARIaNTelfst"
+    },
+    {
+      "ColumnName": "C_NATIONKEY",
+      "column_value": 4
+    },
+    {
+      "ColumnName": "C_PHONE",
+      "column_value": "14-526-204-4500"
+    },
+    {
+      "ColumnName": "C_ACCTBAL",
+      "column_value": 8.848469999999999e+03
+    },
+    {
+      "ColumnName": "C_MKTSEGMENT",
+      "column_value": "MACHINERY"
+    },
+    {
+      "ColumnName": "C_COMMENT",
+      "column_value": "frays wake blithely enticingly ironic asymptote"
+    },
+    {
+      "ColumnName": "C_CUSTKEY",
+      "column_value": 30002
+    },
+    {
+      "ColumnName": "C_NAME",
+      "column_value": "Customer#000030002"
+    },
+    {
+      "ColumnName": "C_ADDRESS",
+      "column_value": "UVBoMtILkQu1J3v"
+    },
+    {
+      "ColumnName": "C_NATIONKEY",
+      "column_value": 11
+    },
+    {
+      "ColumnName": "C_PHONE",
+      "column_value": "21-340-653-9800"
+    },
+    {
+      "ColumnName": "C_ACCTBAL",
+      "column_value": 5.221810000000000e+03
+    },
+    {
+      "ColumnName": "C_MKTSEGMENT",
+      "column_value": "MACHINERY"
+    },
+    {
+      "ColumnName": "C_COMMENT",
+      "column_value": "he slyly ironic pinto beans wake slyly above the fluffily careful warthogs. even dependenci"
+    }
+  ]
+}
+
+
 
 -- Alternative steps to execute statement (simpler, but less control).
-CREATE OR REPLACE PROCEDURE CUSTOMERS_INSERT_PROCEDURE (CREATE_DATE varchar)
+CREATE OR REPLACE PROCEDURE CUSTOMERS_INSERT_PROCEDURE (CREATE_DATE VARCHAR)
     RETURNS STRING NOT NULL 
     LANGUAGE JAVASCRIPT
+    EXECUTE AS CALLER -- Caller Procedure
     AS 
     $$
 
@@ -5720,3 +5801,61 @@ CREATE OR REPLACE PROCEDURE CUSTOMERS_INSERT_PROCEDURE (CREATE_DATE varchar)
     -- //// 3) Return of string value
         return "Successfully executed.";
     $$;
+
+
+CALL CUSTOMERS_INSERT_PROCEDURE(current_date());
+
+
+-- Using if-else statements in for loop
+CREATE OR REPLACE PROCEDURE COLUMN_FILL_RATE_LOOPS_IF_ELSE(TABLE_NAME varchar)
+  RETURNS VARIANT NOT NULL
+  LANGUAGE JAVASCRIPT
+  AS    
+  $$  
+  
+    var array_of_rows = [];
+    row_as_json = {};
+    
+
+
+--  //// 1) SQL statement in JavaScript variable
+    var my_sql_command = "select * from "+ TABLE_NAME +" LIMIT 10;"
+
+
+--  //// 2) Creation of Statement Object, using SQL command
+    var statement1 = snowflake.createStatement( {sqlText: my_sql_command} );
+
+-- //// 3) Execution of Statement Object
+    var result_set1 = statement1.execute();
+    
+
+-- //// 3.5) Execution of ".next()" on result_set object (must always be done, even without while and for loops)
+      while (result_set1.next())  {
+--      // Put each row in a variable of type JSON.
+ 
+ --     // For each column in the row...
+        for (var col_num = 0; col_num < result_set1.getColumnCount(); col_num = col_num + 1) {
+          var col_name =result_set1.getColumnName(col_num+1);
+          var col_value = result_set1.getColumnValue(col_num+1);
+          
+
+          if (col_name==='C_NAME') {
+            col_value='JOHN';
+          } else {
+            col_value
+          }
+
+
+          row_as_json = { ColumnName : col_name ,column_value : col_value}
+          
+          array_of_rows.push(row_as_json)
+          }
+          
+        }   
+        
+  table_as_json = { "key1" : array_of_rows };
+   
+--  //// 4) Return of Result Set/other object, constructed using the Result Set (transformations)
+   return table_as_json; 
+  $$
+  ;
