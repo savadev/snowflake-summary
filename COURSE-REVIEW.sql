@@ -5299,3 +5299,292 @@ SELECT *
 SELECT * FROM SNOWFLAKE.ACCOUNT_USAGE.TAG_REFERENCES
     WHERE TAG_NAME = 'PRIVACY_CATEGORY'
     AND TAG_VALUE = 'IDENTIFIER';
+
+
+
+
+
+
+
+
+
+-- MODULE 29 -- 
+
+
+
+
+
+
+
+
+-- Stored Procedures
+
+
+
+
+
+-- Some general Snowflake Stored Procedure quirks:
+
+
+--  0) Stored Procedures never throw errors while they are being created; they will
+--     only throw errors during their compilation, when being executed.
+
+--  1) Snowflake doesn't allow the importing of JavaScript packages
+-- into procedures.
+
+--  2) Snowflake also doesn't allow you to use JavaScript native Objects
+--     like "Math.random()" (you must use SQL functions that yield similar results/effects).
+
+-- 3) The important Snowflake Objects, in a Stored Procedure are the Statement (
+    -- created with 'Snowflake.createStatement()', and executed with 'statementName.execute()'), and
+    -- Result Set (which needs to run 'result_set_name.next()' ) Objects.
+
+-- 4) The data type 'Number' is not supported for arguments or returns (we should use VARCHAR or FLOAT, instead)
+
+-- 5) Many data types are not supported "out-of-the-box"; we need to use the corresponding compatible SQL data types to 
+-- use the without errors. The correlation is:
+
+
+INCOMPATIBLE SQL DATA TYPE     COMPATIBLE SQL DATA TYPE
+
+INTEGER                             FLOAT
+NUMBER, NUMERIC, DECIMAL            FLOAT 
+BINARY                              Uint8Array
+OBJECT                              Uint8Array 
+
+
+-- 6) This means that the only possible returnable data types are VARCHAR, FLOAT, Uint8Array and VARIANT (for JSON returns).
+
+-- 7) In the return type, we can specify "NOT NULL" as an option; if we do so, NULL values are not included in the final returned result.
+
+-- 8) Inside the Statement Object, the most important methods are ".execute()", ".getColumnValue()", ".getColumnScale()", ".next()" and ".getQueryId()", but 
+--    there are other important ones as well.
+
+-- 9) With ".getQueryId()", and a given query's Id, we can get lots of other information, like "how much time a given query took", "which warehouse was used" 
+--    and "how long the Warehouse was kept active" (these can be used to calculate cost).
+
+-- 10) The Result Set Object is created on top of/using the Statement Object.
+
+-- 11) The Result Set Object's methods can be found inside of the Statement Object; it has less methods than the Statement Object, and many 
+--     of the latter's methods are present in the former's object as well.
+
+-- 12) The most important Result Set method is ".next()", and should always be called, to initialize the pointer in your Result Set (to go through 
+-- the entire Result Set and run operations/transformations on top of its records).
+
+-- 13) Argument names are case-insensitive in the SQL portion of the procedure's code, but case-sensitive 
+--     in the JavaScript parts.
+
+-- 14) Stored Procedures are able to return only a single output (multiple values per return are not allowed).
+
+-- 15) Because we are able to return only a single value/output, we should always think beforehand about the output structure of 
+--     our returned value/object (if we are returning a JSON value).
+
+
+-- Snowflake Procedures are divided into 
+
+
+
+-- A) Caller Procedures 
+
+
+
+
+
+
+
+
+-- B) Owner Procedures
+
+
+
+
+
+
+
+
+
+-- Stored Procedure Examples:
+
+
+
+-- Returns the count of rows of a given table as a value
+CREATE OR REPLACE PROCEDURE COLUMN_COUNT(TABLE_NAME VARCHAR)
+    RETURNS VARCHAR
+    LANGUAGE JAVASCRIPT
+    EXECUTE AS CALLER -- Caller Procedure
+    AS 
+    $$
+    var my_sql_command =  "SELECT COUNT(*) FROM " + TABLE_NAME;
+
+    var statement1 = snowflake.createStatement({ sqlText: my_sql_command }); -- Statement Object created
+    
+    var result_set1 = statement1.execute(); -- Result Set Object created
+
+    result_set1.next(); -- Result Set 'next()' method called (initializes pointer - needed to go through table)
+
+    row_count = result_set1.getColumnValue(1); -- Value - VARCHAR
+
+    return row_count;
+    $$;
+
+
+-- Call/Execute Stored Caller Procedure 
+CALL COLUMN_COUNT(DEMO_DB.PUBLIC.EMP_BASIC); -- returns something like '10.000';
+
+
+-- Returns the Snowflake Statement Object, in a JSON format, displaying all of its methods and properties. 
+CREATE OR REPLACE PROCEDURE COLUMN_FILL_RATE_STATEMENT_OBJECT(TABLE_NAME VARCHAR)
+    RETURNS VARIANT NOT NULL 
+    LANGUAGE JAVASCRIPT
+    $$
+    var my_sql_command = 'SELECT COUNT(*) FROM ' + TABLE_NAME;
+
+
+    var statement1 = snowflake.createStatement({sqlText: my_sql_command});
+
+
+    return statement1;
+    $$
+
+-- Check out the Snowflake Statement Object, returned by this procedure
+CALL COLUMN_FILL_RATE_1('DEMO_DB.PUBLIC.CUSTOMER');
+
+
+
+-- Snowflake Statement Object:
+{
+  "_c_resultSet": {
+    "columnCount": 1,
+    "getColumnDescription": {},
+    "getColumnName": {},
+    "getColumnScale": {},
+    "getColumnSfDbType": {},
+    "getColumnValue": {},
+    "getColumnValueInternalRep": {},
+    "getColumnValueStringRep": {},
+    "getColumnsName": {},
+    "isColumnNullable": {},
+    "next": {},
+    "rowCount": 1,
+    "status": 0
+  },
+  "_updateStatementWithNewResult": {},
+  "columnCount": 1,
+  "execute": {},
+  "executeAsync": {},
+  "getColumnCount": {},
+  "getColumnName": {},
+  "getColumnScale": {},
+  "getColumnSqlType": {},
+  "getColumnType": {},
+  "getNumDuplicateRowsUpdated": {},
+  "getNumRowsAffected": {},
+  "getNumRowsDeleted": {},
+  "getNumRowsInserted": {},
+  "getNumRowsUpdated": {},
+  "getPersistedStatus": {},
+  "getQueryId": {},
+  "getRequestId": {},
+  "getRowCount": {},
+  "getSqlText": {},
+  "getStatementId": {},
+  "getStatus": {},
+  "isColumnArray": {},
+  "isColumnBinary": {},
+  "isColumnBoolean": {},
+  "isColumnDate": {},
+  "isColumnNullable": {},
+  "isColumnNumber": {},
+  "isColumnObject": {},
+  "isColumnText": {},
+  "isColumnTime": {},
+  "isColumnTimestamp": {},
+  "isColumnVariant": {},
+  "isDml": {},
+  "queryId": "01aea239-0001-4fe1-0004-6d2a000420da",
+  "resultSet": {
+    "COUNT(*)": 150000,
+    "getColumnCount": {},
+    "getColumnDescription": {},
+    "getColumnName": {},
+    "getColumnScale": {},
+    "getColumnSqlType": {},
+    "getColumnType": {},
+    "getColumnValBoxedType": {},
+    "getColumnValue": {},
+    "getColumnValueAsString": {},
+    "getNumRowsAffected": {},
+    "getQueryId": {},
+    "getRowCount": {},
+    "getSqlcode": {},
+    "isColumnArray": {},
+    "isColumnBinary": {},
+    "isColumnBoolean": {},
+    "isColumnDate": {},
+    "isColumnNullable": {},
+    "isColumnNumber": {},
+    "isColumnObject": {},
+    "isColumnText": {},
+    "isColumnTime": {},
+    "isColumnTimestamp": {},
+    "isColumnVariant": {},
+    "isDml": {},
+    "next": {},
+    "setCResultSet": {}
+  },
+  "rowCount": 1,
+  "wait": {}
+}
+
+
+-- Result Set Object:
+  "resultSet": {
+    "COUNT(*)": 150000,
+    "getColumnCount": {},
+    "getColumnDescription": {},
+    "getColumnName": {},
+    "getColumnScale": {},
+    "getColumnSqlType": {},
+    "getColumnType": {},
+    "getColumnValBoxedType": {},
+    "getColumnValue": {},
+    "getColumnValueAsString": {},
+    "getNumRowsAffected": {},
+    "getQueryId": {},
+    "getRowCount": {},
+    "getSqlcode": {},
+    "isColumnArray": {},
+    "isColumnBinary": {},
+    "isColumnBoolean": {},
+    "isColumnDate": {},
+    "isColumnNullable": {},
+    "isColumnNumber": {},
+    "isColumnObject": {},
+    "isColumnText": {},
+    "isColumnTime": {},
+    "isColumnTimestamp": {},
+    "isColumnVariant": {},
+    "isDml": {},
+    "next": {},
+    "setCResultSet": {}
+  },
+
+
+-- UPPERCASE vs lowercase, in stored procedures:
+
+-- Argument names are case-insensitive in the SQL portion of the stored procedure code, but are case-sensitive in the JavaScript portion.
+-- Using uppercase identifiers (especially argument names) consistently across your SQL statements and JavaScript code tends to reduce silent errors
+CREATE OR REPLACE PROCEDURE F(ARGUMENT1 VARCHAR)
+RETURNS VARCHAR
+LANGUAGE JAVASCRIPT
+AS
+$$
+
+var local_variable2 = ARGUMENT1;  // Correct
+
+var local_variable1 = argument1;  // Incorrect
+
+return local_variable2
+$$;
+
+call F('prad')
