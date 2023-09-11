@@ -5413,6 +5413,9 @@ TABLE(FLATTEN(COLUMN_FILL_RATE_OUTPUT_STURCTURE:key1)) AS F; -- "COLUMN_FILL_RAT
 
 -- 20) Still, you shouldn't run "result_set.next()" at the beginning of your procedure, as it will skip to the next record in your result set.
 
+-- 21) You can use Bind Variables in your stored procedure to pass values into your SQL statements, from inside the JavaScript code. This feature also 
+--     helps to protect against SQL injection attacks, and to make your code more reusable.
+
 -- Snowflake Procedures are divided into 
 
 
@@ -5825,6 +5828,7 @@ CALL CUSTOMERS_INSERT_PROCEDURE(current_date());
 CREATE OR REPLACE PROCEDURE COLUMN_FILL_RATE_LOOPS_IF_ELSE(TABLE_NAME varchar)
   RETURNS VARIANT NOT NULL
   LANGUAGE JAVASCRIPT
+  EXECUTE AS CALLER -- Caller Procedure
   AS    
   $$  
   
@@ -5874,3 +5878,66 @@ CREATE OR REPLACE PROCEDURE COLUMN_FILL_RATE_LOOPS_IF_ELSE(TABLE_NAME varchar)
    return table_as_json; 
   $$
   ;
+
+
+-- Example of the usage of Bind Variables
+CREATE OR REPLACE PROCEDURE COLUMN_FILL_RATE_BIND_VAR(TABLE_NAME VARCHAR)
+    RETURNS STRING NOT NULL
+    LANGUAGE JAVASCRIPT
+    EXECUTE AS CALLER -- Caller Procedure
+    AS 
+    $$ 
+    var array_of_rows= [];
+    var row_as_json = {};
+
+    var my_sql_command = "SELECT * FROM " + TABLE_NAME + " LIMIT 10;"
+    var statement1 = snowflake.createStatement(
+        {
+            sqlText: my_sql_command
+        }
+    );
+    var result_set1 = statement1.execute();
+
+
+    var my_sql_command_2 = 'INSERT INTO CUSTOMER_TRANSPOSED VALUES(:1, :2)'; -- :1 and :2 are the placeholders/slots for the binded values.
+
+
+    while (result_set1.next()) {
+
+-- // Put each row in a variable of type JSON.
+
+ -- // For each column in the row...
+        for (var col_num = 0; col_num < result_set1.getColumnCount(); col_num = col_num + 1) {
+
+                var col_name=result_set1.getColumnName(col_num + 1);
+                var col_value=result_set1.getColumnValue(col_num + 1);
+
+
+
+        if (col_name === 'C_NAME') {
+            col_value='JOHN'
+        } else {
+            col_value
+        }
+
+
+        row_as_json = {
+            ColumnName: col_name,
+            column_value: col_value
+        };
+
+        array_of_rows.push(row_as_json);
+
+
+        snowflake.execute({ -- Instead of returning the result set/some object, we run an INSERT statement into a table, via this statement
+            sqlText: my_sql_command_2,
+            binds: [col_name, col_val] -- Example of Bind Variables usage - we bind these variables' values into the "my_sql_command_2" statement.
+        }) 
+        }
+    }
+
+    return 'Rows inserted Successfully';
+        $$;
+
+
+CALL COLUMN_FILL_RATE_BIND_VAR('DEMO_DB.PUBLIC.CUSTOMER')
