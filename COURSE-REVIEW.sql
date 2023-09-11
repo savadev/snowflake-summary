@@ -5070,7 +5070,9 @@ SET TAG TAGS.GOVERNANCE.COMMENTS_TAG='Hey there';
 
 
 -- Feature used for data discovery, for suggesting tags that might be useful
--- for your current Database distribution.
+-- for your current Database distribution. It's also frequently used for cases where you
+-- have hundreds of columns/tables in your system, to avoid spending
+-- too much time applying tags manually.
 
 
 
@@ -5211,3 +5213,89 @@ SEMANTIC_CATEGORY='AGE';
 
 
 
+-- Data Classification Built-in Function - suggests tags, tagging by "SEMANTIC_CATEGORY" and "PRIVACY_CATEGORY"
+SELECT EXTRACT_SEMANTIC_CATEGORIES('REVENUE.TRANSPORT.AIRLINE');
+
+-- The output is a JSON with the suggested tags' values and probability (because sometimes the suggestion may be wrong; suggestions are only shown if the probability 
+-- is higher than 0.15%)
+"Airline Notes": {
+    "extra_info": {
+        "alternates": [],
+        "probability": "1.00"
+    },
+    "privacy_category": "QUASI_IDENTIFIER",
+    "semantic_category": "OCCUPATION"
+}
+
+
+
+-- Function used to convert the JSON into tabular format, for easier viewing
+SELECT
+    f.key::varchar as column_name,
+    f.value:"privacy_category"::varchar as privacy_category,  
+    f.value:"semantic_category"::varchar as semantic_category,
+    f.value:"extra_info":"probability"::number(10,2) as probability,
+    f.value:"extra_info":"alternates"::variant as alternates
+  FROM
+  TABLE(FLATTEN(EXTRACT_SEMANTIC_CATEGORIES('<database.schema.table_name>')::VARIANT)) AS f;
+
+SELECT
+    f.key::varchar as column_name,
+    f.value:"privacy_category"::varchar as privacy_category,  
+    f.value:"semantic_category"::varchar as semantic_category,
+    f.value:"extra_info":"probability"::number(10,2) as probability,
+    f.value:"extra_info":"alternates"::variant as alternates
+  FROM
+  TABLE(FLATTEN(EXTRACT_SEMANTIC_CATEGORIES('<database.schema.table_name>')::VARIANT)) AS f;
+
+
+SELECT
+    f.key::varchar as column_name,
+    f.value:"privacy_category"::varchar as privacy_category,  
+    f.value:"semantic_category"::varchar as semantic_category,
+    f.value:"extra_info":"probability"::number(10,2) as probability,
+    f.value:"extra_info":"alternates"::variant as alternates
+  FROM
+  TABLE(FLATTEN(EXTRACT_SEMANTIC_CATEGORIES('<database.schema.table_name>')::VARIANT)) AS f;
+  
+--if the probability is below the 0.80 threshold and the process identified other 
+--possible semantic categories with a probability greater than 0.15
+
+
+
+
+
+-- Once/if you are satisfied with the tagging suggested by Snowflake, you can 
+-- call a built-in Stored Procedure that will automatically tag the database object 
+-- for you. This procedure will tag the columns if their probability is equal to 100% (1.00):
+CALL ASSOCIATE_SEMANTIC_CATEGORY_TAGS('<database.schema.table_name>', 
+    EXTRACT_SEMANTIC_CATEGORIES('<database.schema.table_name>')
+);
+
+
+-- Check the value of the tagged columns in your table
+SELECT *
+    FROM TABLE(INFORMATION_SCHEMA.TAG_REFERENCES_ALL_COLUMNS('<database.schema.table_name>', 'table'));
+
+
+
+
+-- Output of query seen above (remember, metadata/tags are not applied instantly, there is a delay)
+
+-- TAG_DATABASE        TAG_SCHEMA      TAG_NAME                TAG_VALUE
+
+
+-- SNOWFLAKE           CORE            PRIVACY_CATEGORY          IDENTIFIER 
+-- SNOWFLAKE           CORE            PRIVACY_CATEGORY          QUASI-IDENTIFIER 
+
+-- SNOWFLAKE           CORE            SEMANTIC_CATEGORY          NAME
+-- SNOWFLAKE           CORE            SEMANTIC_CATEGORY          OCCUPATION
+
+
+
+-- Check out which columns were tagged as "IDENTIFIER", in your system (tags created by Snowflake,
+-- with this feature, live in the Snowflake central account schema; tags created by us, users, 
+-- stay in the schema where we specify them)
+SELECT * FROM SNOWFLAKE.ACCOUNT_USAGE.TAG_REFERENCES
+    WHERE TAG_NAME = 'PRIVACY_CATEGORY'
+    AND TAG_VALUE = 'IDENTIFIER';
