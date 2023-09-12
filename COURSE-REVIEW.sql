@@ -1260,6 +1260,8 @@ FILE_FORMAT=(
 -- rules that apply to all objects also are applied 
 -- to this type of object.
 
+-- This type of object also cannot be cloned.
+
 
 
 
