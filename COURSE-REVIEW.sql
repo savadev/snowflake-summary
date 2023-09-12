@@ -8,6 +8,9 @@
 -- M1 - Warehouses, Cost Monitoring Queries and General Syntax
 
 
+-- Snowflake is designed for OLAP (Analytics) 
+-- and OLTP (Transactional) workloads.
+
 -- Each Snowflake Account is provisioned in a 
 -- single geographic region.
 
@@ -41,6 +44,11 @@
 -- If you must load a large file, carefully consider the ON_ERROR copy option value.
 
 -- If enabled, periodic rekeying happens every 12 months.
+
+-- The minimum Snowflake edition that 
+-- customers planning on storing protected 
+-- information in Snowflake should consider for 
+-- regulatory compliance (HIPAA) is "Business Critical".
 
 -- In your system, your Databases must have unique identifiers,
 -- you cannot have two databases named "AUDIENCE_LAB", for example.
@@ -306,6 +314,10 @@ SET AUTO_SUSPEND=900;
 
 -- Micro-partitions, themselves, are immutable; cannot be modified 
 -- once they have been created.
+
+-- Micro-partitions are approximately 16MB in size.
+
+-- The maximum compressed row size in Snowflake is 16MB.
 
 -- The main system function used to retrieve clustering information
 -- for a given column/columns is "SYSTEM$CLUSTERING_INFORMATION(<table_identifier>)"
@@ -2776,6 +2788,8 @@ LATERAL FLATTEN(to_array(xml_demo.v:"$")) AS auction_announcement;
 -- data copying in your tables, data extracted from uploaded
 -- files.
 
+-- Snowpipe supports copying from External Stage as well
+-- as Internal Stage.
 
 -- With Snowpipe, for every file appearing in your bucket,
 -- a notification is sent, by AWS S3, to the Snowpipe 
