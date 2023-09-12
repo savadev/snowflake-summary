@@ -2894,6 +2894,11 @@ FROM TABLE(SNOWFLAKE.INFORMATION_SCHEMA.COPY_HISTORY(
 -- we can provide access to a Clone of the main table, instead of providing access
 -- directly to it (not a good idea).
 
+-- Data providers can only share data with data consumers that 
+-- "live" in the same cloud region/cloud provider as they do. If they 
+-- want to share data with data consumers of another region, "Replication"
+-- to an account in the data consumers' region is a prerequisite.
+
 -- OBS: only Secure Views (views that have their SQL text/definition field hidden/blank) can be provided to 
 -- consumer accounts. Regular views are prohibited. 
 
