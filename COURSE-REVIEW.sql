@@ -1358,7 +1358,8 @@ SHOW STAGES;
 -- Load data - Second Object Type - File Formats
 
 
-
+-- A File Format, named (object) or not, always needs 
+-- to be specified in your COPY command.
 
 -- The greatest advantage of the File Format objects is 
 -- that it does not matter how many COPY commands you have,
