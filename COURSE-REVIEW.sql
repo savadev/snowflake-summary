@@ -23,6 +23,11 @@
 -- a while longer, as developers will constantly run queries on this Warehouse and utilize its 
 -- cache.
 
+To optimize the number of parallel operations for a load, 
+we recommend aiming to produce data files roughly 100-250 MB (or larger) in size compressed.
+Loading very large files (e.g. 100 GB or larger) is not recommended. 
+If you must load a large file, carefully consider the ON_ERROR copy option value.
+
 -- Creating a warehouse, to run queries:
 CREATE OR REPLACE WAREHOUSE audiencelab_main with
 warehouse_size='X-SMALL'
@@ -250,6 +255,10 @@ SET AUTO_SUSPEND=900;
 
 
 -- M3 - Clustering -- 
+
+
+-- The recommended maximum number of columns (or expressions) defined per clustering key,
+-- according to Snowflake, is 3 or 4.
 
 
 -- Clustering Tips:
@@ -1893,6 +1902,8 @@ FROM DEMO_DB.PUBLIC.REJECTED_RECORDS;
 -- create "pseudofolders" inside of our table, based on the filename criteria). For more info,
 -- check the example below, right after the manual refresh command.
 
+-- Also, External Tables cannot be cloned.
+
 -- Syntax:
 
 
@@ -2818,6 +2829,9 @@ FROM TABLE(SNOWFLAKE.INFORMATION_SCHEMA.COPY_HISTORY(
 -- consumer accounts. Regular views are prohibited. 
 
 -- Always remember that Secure Views are a little slower than regular views; this is more noticeable with bigger tables.
+
+-- Also, you can consume as many shares as you want from data providers,
+-- but you can only create one database per share.
 
 
 
