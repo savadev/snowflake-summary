@@ -1360,7 +1360,12 @@ SHOW STAGES;
 -- if you change the File Format that is registered to all of them,
 -- the changes's effects will be applied to all of the commands as well.
 
+-- The most common properties used with CSV File Formats are 
+-- RECORD_DELIMITER, SKIP_HEADER and FIELD_DELIMITER.
 
+-- Some properties are only supported by some File Format types,
+-- like "STRIP_OUTER_ARRAY" AND "STRIP_NULL_VALUES", which are only 
+-- supported by File Formats of type JSON.
 
 
 -- Basic File Format Creation Syntax:
@@ -7016,3 +7021,7 @@ GRANT SELECT ON TABLE MY_DB.MY_SCHEMA_2.EMP TO ROLE SOME_ROLE;
 
 -- Currently, Snowflake "Network Policy" objects
 -- only support IPv4 IP addresses.
+
+
+-- The only languages supported by UDFs are JavaScript,
+-- Java, Python and SQL.
