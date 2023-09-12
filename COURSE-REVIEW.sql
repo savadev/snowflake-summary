@@ -285,6 +285,10 @@ SET AUTO_SUSPEND=900;
 -- according to Snowflake, is 3 or 4.
 
 
+-- Clustering is used to eliminate unrequired micro-partitions 
+-- during queries (process called "pruning").
+
+
 -- Clustering Tips:
 
 
@@ -979,6 +983,18 @@ ORDER BY eligible_query_acceleration_time DESC;
 
 
 -- M9 - Search Optimization Service (SOS) --
+
+
+
+-- This service is frequently used for queries that execute 
+-- "selective point lookups", such as these ones:
+
+SELECT
+NAME, ADDRESS FROM EMPLOYEES 
+WHERE EMP_ID IN ('12867', '0987SS');
+
+SELECT NAME, ADDRESS FROM EMPLOYEES WHERE 
+EMP_EMAIL='support.help@corp.com';
 
 
 
@@ -4044,6 +4060,9 @@ ALTER TASK CONTROL_DB.TASKS.S3_TASK RESUME;
 -- MVs are database objects that contain the
 -- result set of a given query.
 
+-- They store the results of a query definition,
+-- and then periodically refresh these results.
+
 -- Unlike normal Views, MVs are not "windows"
 -- into your tables.
 
@@ -6619,6 +6638,8 @@ SUBSTR(col_name, 1); -- different overloads
 
 
 
+-- Snowflake uses Role-based Access Control (RBAC)
+-- and Discretionary Access Control (DAC).
 
 
 -- The access to database objects is defined through privileges. Our 
