@@ -6875,3 +6875,32 @@ GRANT USAGE ON TABLE MY_DB.MY_SCHEMA_2.EMP TO ROLE SOME_ROLE;
 GRANT SELECT ON TABLE MY_DB.MY_SCHEMA_2.EMP TO ROLE SOME_ROLE;
 
 
+
+
+
+
+
+
+-- MODULE 31 -- 
+
+
+
+
+-- M31 - Snowflake Partner Connect
+
+
+
+
+
+-- Partner Connect is a service which expedites 
+-- the process of getting up and running with 
+-- selected third-party tools.
+
+
+-- It allows you to easily create trial account with 
+-- selected Snowflake business partners and integrate 
+-- these accounts with Snowflake.
+
+-- Generally, this option/feature will create some objects
+-- in your Snowflake account at the same time a trial/free
+-- account is created, in the service you have chosen.
