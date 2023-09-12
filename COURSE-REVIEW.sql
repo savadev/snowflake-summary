@@ -28,6 +28,29 @@
 --  in size compressed. Loading very large files (e.g. 100 GB or larger) is not recommended. 
 -- If you must load a large file, carefully consider the ON_ERROR copy option value.
 
+
+
+Q: "A data engineer is running some transformation jobs
+using a M virtual warehouse. The virtual warehouse seems
+to be suspending between the jobs, making subsequent
+jobs take longer. What could be the issue? Choose one correct value."
+
+
+A: The Virtual Warehouse AUTO_SUSPEND property (seconds) is 
+set too low. - If the AUTO_SUSPEND property is
+set too low this can cause the virtual warehouse to go into
+the suspended state quicker than is desired. This can cause
+subsequent jobs to run slower because virtual warehouse will purge
+ their cache when suspended.
+
+
+
+
+-- Example Syntax:
+
+
+
+
 -- Creating a warehouse, to run queries:
 CREATE OR REPLACE WAREHOUSE audiencelab_main with
 warehouse_size='X-SMALL'
@@ -274,7 +297,9 @@ SET AUTO_SUSPEND=900;
 -- This can be bad for costs in large tables, if you frequently update, as there will be a considerable amount of compute power cost each time there is a need for a reorder,
 -- each time there is an update.
 
-
+-- 5) "Natural Clustering" is determined by the order in which the 
+--     data is loaded (and should always be preferred, instead of custom
+--     clustering, as it is cheaper).
 
 
 
