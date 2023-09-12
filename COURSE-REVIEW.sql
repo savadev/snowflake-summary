@@ -291,6 +291,8 @@ SET AUTO_SUSPEND=900;
 -- Clustering is used to eliminate unrequired micro-partitions 
 -- during queries (process called "pruning").
 
+-- The main system function used to retrieve clustering information
+-- for a given column/columns is "SYSTEM$CLUSTERING_INFORMATION(<table_identifier>)"
 
 -- Clustering Tips:
 
