@@ -2909,6 +2909,9 @@ FROM TABLE(SNOWFLAKE.INFORMATION_SCHEMA.COPY_HISTORY(
 -- Also, you can consume as many shares as you want from data providers,
 -- but you can only create one database per share.
 
+-- Each Share object is configured with Object Privileges (GRANTS to Database, Schemas and Table Objects)
+-- and account identifiers (part of the url of the consumer account)
+
 
 
 -- To use this feature, we need:
