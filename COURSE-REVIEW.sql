@@ -1179,6 +1179,14 @@ CREATE SCHEMA CONTROL_DB.TAGS;
 -- Stages contain properties like "location", which is the place where your files will be coming from.
 
 
+ Q: As a data engineer, I want to create a file URL that is only valid for 24 hours.
+ Which file function would I use?
+
+ A: BUILD_SCOPED_FILE_URL -- this outputs an encoded URL granting access to a file for 24
+ hours, to the user that requested it.
+
+
+
 -- There are 2 types of Stages:
 
 
