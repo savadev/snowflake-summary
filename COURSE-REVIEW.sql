@@ -29,7 +29,7 @@
 --  in size compressed. Loading very large files (e.g. 100 GB or larger) is not recommended. 
 -- If you must load a large file, carefully consider the ON_ERROR copy option value.
 
-
+-- If enabled, periodic rekeying happens every 12 months.
 
 Q: "A data engineer is running some transformation jobs
 using a M virtual warehouse. The virtual warehouse seems
@@ -635,6 +635,8 @@ SELECT SYSTEM$CLUSTERING_INFORMATION('CUSTOMER_ORDER_BY_EXAMPLE', '(C_MKTSEGMENT
 --    records in the main/production Table (where there's a huge data set, and time/processing will be high, to update only a few 
 --    records, out of millions of records).
 
+-- 7) If we are to use WHERE filters in complex queries, we should always use them 
+--    as EARLY as possible, to improve pruning for subsequent processing steps such as "GROUP BY"
 
 
 -- Snowflake treats transactions differently, but still satisfies the 4 A.C.I.D principles.
@@ -2238,6 +2240,11 @@ SELECT * FROM SNOWFLAKE.ACCOUNT_USAGE.COPY_HISTORY;
 -- like "SELECT VALUE:employee:name" instead of "SELECT VALUE:employee:Name".
 
 
+-- To traverse semi-structured data, in Snowflake,
+-- we use the dot notation (.) and bracket notation ([], for arrays).
+
+
+
 -- Select and Load JSON Data, Basic Syntax:
 
 
@@ -2852,6 +2859,12 @@ FROM TABLE(SNOWFLAKE.INFORMATION_SCHEMA.COPY_HISTORY(
 -- M17 - Data Sharing
 
 
+-- (Secure Data Sharing).
+
+-- This feature is not supported in 
+-- the "Virtual Private" Snowflake edition,
+-- due to stricter security requirements and
+-- the isolated environment the account exists in.
 
 
 
@@ -6636,11 +6649,14 @@ SUBSTR(col_name, 1); -- different overloads
 
 
 
+-- Tri-secret secure feature makes use of a composite
+-- key made up of a customer managed key and a Snowflake managed key.
 
+-- Snowflake uses a hierarchical key model which is rooted in
+-- a hardware key.
 
 -- Snowflake uses Role-based Access Control (RBAC)
 -- and Discretionary Access Control (DAC).
-
 
 -- The access to database objects is defined through privileges. Our 
 -- Roles should have granular privileges, from top to bottom.
@@ -6651,6 +6667,8 @@ SUBSTR(col_name, 1); -- different overloads
 -- With the "USAGE" privilege on a role, we can run queries on warehouses.
 -- However, if we wish to suspend/resume a given warehouse, we need the privilege 
 -- of "OPERATE" on top of it.
+
+
 
 
 
