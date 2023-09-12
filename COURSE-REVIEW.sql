@@ -6664,6 +6664,8 @@ SUBSTR(col_name, 1); -- different overloads
 -- The access to database objects is defined through privileges. Our 
 -- Roles should have granular privileges, from top to bottom.
 
+-- In Snowflake, every securable object is owned by a single role (single ownership).
+
 -- When a user is created, by default it has no role other than 'PUBLIC',
 -- and no warehouse access.
 
@@ -6801,7 +6803,6 @@ GRANT CREATE DATABASE ON ACCOUNT TO ROLE DEVELOPER;
 -- In regular (i.e. non-managed schemas), object owners (creators of tables, schemas, databases),
 -- roles that have ownership over objects, can grant access on these objects to any roles, if they 
 -- wish to do so.
-
 
 -- To remedy this access control freedom and to have better security, managed schemas were created.
 -- With Managed Schemas, object owners lose the ability to GRANT access to other roles. Only the Schema 
