@@ -9,7 +9,8 @@
 
 
 -- Warehouse means a group of nodes 
--- and clusters which  helps to process the data.
+-- and clusters which  helps to process the data. It is 
+-- a named abstraction for one or more compute nodes.
 
 -- In most cases, compute costs, when using Snowflake normally, are higher
 -- than storage costs (5-6 times the storage cost, generally).
@@ -1105,7 +1106,9 @@ select * from DEMO_DB.PUBLIC.LINEITEM_NO_SOS where L_orderkey = '4509487233'; --
 -- To connect to our snowflake account/app, we must run, in the terminal:
 snowsql -a <account-identifier> -u <username_in_the_account>  -- "account-identifier" is something like <string>.us-east-2.aws
 
-
+-- When we connect with SnowSQL CLI,
+-- we assume the role which our account/user
+-- has.
 
 
 
@@ -2195,6 +2198,11 @@ SELECT * FROM TABLE(DEMO_DB.INFORMATION_SCHEMA.COPY_HISTORY(TABLE_NAME=>'EMP_BAS
 SELECT * FROM SNOWFLAKE.ACCOUNT_USAGE.COPY_HISTORY;
 
 
+-- 9) SINGLE - if set as TRUE,
+--    the default behavior when unloading (i.e. splitting 
+--    your table's row data into multiple files, in your 
+--    internal stage) is switched by a behavior that forces
+--    your tabular data to create a single file.
 
 
 
@@ -2208,6 +2216,10 @@ SELECT * FROM SNOWFLAKE.ACCOUNT_USAGE.COPY_HISTORY;
 -- M15 - Load Unstructured Data (JSON, XML) -- 
 
 
+
+-- When loading/parsing JSON, always refer to element names (keys in the json)
+-- with correct casing (they are case-sensitive; "name" is different than "Name"),
+-- like "SELECT VALUE:employee:name" instead of "SELECT VALUE:employee:Name".
 
 
 -- Select and Load JSON Data, Basic Syntax:
