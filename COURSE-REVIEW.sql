@@ -2901,7 +2901,8 @@ FROM TABLE(SNOWFLAKE.INFORMATION_SCHEMA.COPY_HISTORY(
 -- Data providers can only share data with data consumers that 
 -- "live" in the same cloud region/cloud provider as they do. If they 
 -- want to share data with data consumers of another region, "Replication"
--- to an account in the data consumers' region is a prerequisite.
+-- to an account in the data consumers' region is a prerequisite. Also, 
+-- consumer account cannot share databases that have been shared with them (re-share).
 
 -- OBS: only Secure Views (views that have their SQL text/definition field hidden/blank) can be provided to 
 -- consumer accounts. Regular views are prohibited. 
@@ -4087,6 +4088,14 @@ ALTER TASK CONTROL_DB.TASKS.S3_TASK RESUME;
 
 -- MVs are database objects that contain the
 -- result set of a given query.
+
+-- They can be created on top of commonly executed
+-- complex queries, to make them readily available 
+-- and more performant.
+
+-- Besides being used for common tables, we can
+-- create them on top of external tables, to improve 
+-- their query performance.
 
 -- They store the results of a query definition,
 -- and then periodically refresh these results.
