@@ -31,6 +31,9 @@
 
 -- If enabled, periodic rekeying happens every 12 months.
 
+-- In your system, your Databases must have unique identifiers,
+-- you cannot have two databases named "AUDIENCE_LAB", for example.
+
 Q: "A data engineer is running some transformation jobs
 using a M virtual warehouse. The virtual warehouse seems
 to be suspending between the jobs, making subsequent
@@ -1948,7 +1951,7 @@ FROM DEMO_DB.PUBLIC.REJECTED_RECORDS;
 -- create "pseudofolders" inside of our table, based on the filename criteria). For more info,
 -- check the example below, right after the manual refresh command.
 
--- Also, External Tables cannot be cloned.
+-- Also, External Tables cannot be cloned, and cannot have Fail-safe zones.
 
 -- Syntax:
 
