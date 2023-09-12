@@ -23,10 +23,10 @@
 -- a while longer, as developers will constantly run queries on this Warehouse and utilize its 
 -- cache.
 
-To optimize the number of parallel operations for a load, 
-we recommend aiming to produce data files roughly 100-250 MB (or larger) in size compressed.
-Loading very large files (e.g. 100 GB or larger) is not recommended. 
-If you must load a large file, carefully consider the ON_ERROR copy option value.
+-- To optimize the number of parallel operations for a load, 
+-- Snowflake recommends aiming to produce data files roughly 100-250 MB (or larger)
+--  in size compressed. Loading very large files (e.g. 100 GB or larger) is not recommended. 
+-- If you must load a large file, carefully consider the ON_ERROR copy option value.
 
 -- Creating a warehouse, to run queries:
 CREATE OR REPLACE WAREHOUSE audiencelab_main with
