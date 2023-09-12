@@ -290,11 +290,13 @@ SET AUTO_SUSPEND=900;
 
 -- M3 - Clustering -- 
 
+-- Snowflake partitions files loaded into it automatically, but you can still
+-- define custom cluster keys ("automatic_clustering", as it is called).
 
--- The recommended maximum number of columns (or expressions) defined per clustering key,
+-- The recommended maximum number of columns (or expressions) defined per custom clustering key,
 -- according to Snowflake, is 3 or 4.
 
--- Clustering is used to eliminate unrequired micro-partitions 
+-- Clustering is used to eliminate/avoid unrequired micro-partitions 
 -- during queries (process called "pruning").
 
 -- Micro-partitions, themselves, are immutable; cannot be modified 
@@ -1633,6 +1635,9 @@ FROM @CONTROL_DB.EXTERNAL_STAGES.S3_EXTERNAL_STAGE AS T;
 -- Always use a dedicated warehouse (size Large is good enough, for most cases)
 -- to load/unload your data, as the process must not be stopped once it is started.
 
+-- The default compression format used by Snowflake, when unloading files
+-- from the staging areas into your local machine, is GZIP.
+
 -- Before copying your files, if they are huge (multiple GB), always split them into smaller
 -- chunks, first. If you copy a lot of 10mb files, the copy speed will be much faster than 
 -- with a 10gb file.
@@ -2294,6 +2299,13 @@ SELECT * FROM SNOWFLAKE.ACCOUNT_USAGE.COPY_HISTORY;
 
 -- PARQUET
 
+
+-- To parse semi-structured data, we have many useful
+-- functions, like 'FLATTEN()' and 'INFER_SCHEMA()" (
+-- which is used to automatically detect a schema definition
+-- )
+
+
 -- Select and Load JSON Data, Basic Syntax:
 
 
@@ -2455,6 +2467,18 @@ FROM DEMO_DB.PUBLIC.EMP_JSON_RAW
 TABLE(FLATTEN(v:citiesLived)) C1,
 TABLE(FLATTEN(c1.value:yearsLived)) Y1
 GROUP BY city_name;
+
+-- Example of INFER_SCHEMA function usage, to automatically
+-- detect a schema definition:
+
+CREATE TABLE DEMO_DB.PUBLIC.SS_TABLE
+USING TEMPLATE (
+  SELECT ARRAY_AGG(OBJECT_CONSTRUCT(*))
+  FROM TABLE(
+      INFER_SCHEMA(
+      LOCATION=>'@CONTROL_DB.STAGES.MY_EXT_STAGE',
+      FILE_FORMAT=>'FF_PARQUET'
+)));
 
 -- After we parse this data, we can store it in other tables, formatted tables, and the like.
 
@@ -6976,8 +7000,6 @@ GRANT SELECT ON TABLE MY_DB.MY_SCHEMA_2.EMP TO ROLE SOME_ROLE;
 -- External functions use API Integration 
 -- Objects to hold security-related information.
 
-
-
 -- API Integration Objects store information 
 -- about HTTPS proxy services, including information 
 -- about:
@@ -6989,3 +7011,8 @@ GRANT SELECT ON TABLE MY_DB.MY_SCHEMA_2.EMP TO ROLE SOME_ROLE;
 -- c) The identifier and access credentials for a cloud 
 --    platform role that has sufficient privileges to use 
 --    the proxy service.
+
+
+
+-- Currently, Snowflake "Network Policy" objects
+-- only support IPv4 IP addresses.
