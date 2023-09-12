@@ -18,7 +18,11 @@
 -- In most cases, compute costs, when using Snowflake normally, are higher
 -- than storage costs (5-6 times the storage cost, generally).
 
--- To choose the correct size of our warehouse, we should experiment
+--  The credit consumption by the compute layer in
+--  Snowflake is primarily based on Warehouse 
+--  size and the amount of data processed.
+
+-- To choose the correct size of our Warehouse, we should experiment
 -- with a representative query of a workload on a variety of sizes, to find
 -- the one that correctly matches the desired run-times.
 
@@ -200,7 +204,8 @@ SELECT * FROM SUPPLIER LIMIT 100;
 
 -- M2 - Caching and Query Profile Analyzing
 
-
+-- Snowflake's architecture can be best described 
+-- as shared disk.
 
 -- In Query Profile:
 
@@ -7025,3 +7030,7 @@ GRANT SELECT ON TABLE MY_DB.MY_SCHEMA_2.EMP TO ROLE SOME_ROLE;
 
 -- The only languages supported by UDFs are JavaScript,
 -- Java, Python and SQL.
+
+-- Snowflake recommends, as a minimum, 
+-- that ACCOUNTADMIN should be enrolled 
+-- in Multi-Factor Authentication.
