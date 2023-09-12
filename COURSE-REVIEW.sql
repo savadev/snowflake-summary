@@ -18,6 +18,10 @@
 -- In most cases, compute costs, when using Snowflake normally, are higher
 -- than storage costs (5-6 times the storage cost, generally).
 
+-- To choose the correct size of our warehouse, we should experiment
+-- with a representative query of a workload on a variety of sizes, to find
+-- the one that correctly matches the desired run-times.
+
 -- Development teams should use same Warehouse during development, to maximize 
 -- caching and reduce processing costs.
 
@@ -1133,6 +1137,15 @@ select * from DEMO_DB.PUBLIC.LINEITEM_NO_SOS where L_orderkey = '4509487233'; --
 
 -- To connect to our snowflake account/app, we must run, in the terminal:
 snowsql -a <account-identifier> -u <username_in_the_account>  -- "account-identifier" is something like <string>.us-east-2.aws
+
+-- Account Identifiers are values like:
+
+xy12345.us-east-2.aws 
+(values composed of "account locator", 
+"account region" 
+and "account cloud platform")
+
+
 
 -- When we connect with SnowSQL CLI,
 -- we assume the role which our account/user
@@ -2268,6 +2281,18 @@ SELECT * FROM SNOWFLAKE.ACCOUNT_USAGE.COPY_HISTORY;
 -- we use the dot notation (.) and bracket notation ([], for arrays).
 
 
+-- The semi-structured data formats supported by 
+-- Snowflake are:
+
+-- AVRO
+
+-- XML 
+
+-- ORC 
+
+-- JSON 
+
+-- PARQUET
 
 -- Select and Load JSON Data, Basic Syntax:
 
@@ -6690,8 +6715,9 @@ SUBSTR(col_name, 1); -- different overloads
 
 
 
--- Tri-secret secure feature makes use of a composite
--- key made up of a customer managed key and a Snowflake managed key.
+-- Tri-secret secure feature makes use of a composite encryption
+-- key made up of a customer managed key and a Snowflake managed key
+-- to encrypt data files.
 
 -- Snowflake uses a hierarchical key model which is rooted in
 -- a hardware key.
@@ -6702,7 +6728,8 @@ SUBSTR(col_name, 1); -- different overloads
 -- The access to database objects is defined through privileges. Our 
 -- Roles should have granular privileges, from top to bottom.
 
--- In Snowflake, every securable object is owned by a single role (single ownership).
+-- In Snowflake, every securable object is owned by a single role (single ownership),
+-- and all Objects are individually securable.
 
 -- When a user is created, by default it has no role other than 'PUBLIC',
 -- and no warehouse access.
@@ -6935,3 +6962,30 @@ GRANT SELECT ON TABLE MY_DB.MY_SCHEMA_2.EMP TO ROLE SOME_ROLE;
 -- Generally, this option/feature will create some objects
 -- in your Snowflake account at the same time a trial/free
 -- account is created, in the service you have chosen.
+
+
+
+
+-- MISC --
+
+
+
+-- MISC
+
+
+-- External functions use API Integration 
+-- Objects to hold security-related information.
+
+
+
+-- API Integration Objects store information 
+-- about HTTPS proxy services, including information 
+-- about:
+
+-- a) The cloud platform provider
+
+-- b) The type of proxy service
+
+-- c) The identifier and access credentials for a cloud 
+--    platform role that has sufficient privileges to use 
+--    the proxy service.
