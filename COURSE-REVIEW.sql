@@ -8,6 +8,9 @@
 -- M1 - Warehouses, Cost Monitoring Queries and General Syntax
 
 
+-- Each Snowflake Account is provisioned in a 
+-- single geographic region.
+
 -- Warehouse means a group of nodes 
 -- and clusters which  helps to process the data. It is 
 -- a named abstraction for one or more compute nodes.
@@ -2164,7 +2167,11 @@ then returns results based on the validation option specified."
 -- loaded during an earlier load because the ON_ERROR
 -- copy option was set to CONTINUE during the load.
 
-
+-- 1.5) VALIDATE() - This is not a COPY command option,
+--      but must be mentioned, as it is extremely convenient.
+--      The VALIDATE() function allows a user to view all errors
+--      and errored-out records encountered during a previous COPY INTO
+--      execution.
 
 -- 2) FILES/PATTERN 
 
