@@ -290,9 +290,11 @@ SET AUTO_SUSPEND=900;
 -- The recommended maximum number of columns (or expressions) defined per clustering key,
 -- according to Snowflake, is 3 or 4.
 
-
 -- Clustering is used to eliminate unrequired micro-partitions 
 -- during queries (process called "pruning").
+
+-- Micro-partitions, themselves, are immutable; cannot be modified 
+-- once they have been created.
 
 -- The main system function used to retrieve clustering information
 -- for a given column/columns is "SYSTEM$CLUSTERING_INFORMATION(<table_identifier>)"
