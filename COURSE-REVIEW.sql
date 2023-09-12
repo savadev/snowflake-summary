@@ -3043,7 +3043,7 @@ SELECT * FROM <database_name>.INFORMATION_SCHEMA.TABLE_STORAGE_METRICS;
 
 -- Alter Retention Period of your Table (possible with Transient and Permanent tables)
 ALTER TABLE DEMO_DB.PUBLIC.EMP_BASIC_PERMANENT
-SET DATA_RETENTION_TIME_IN_DAYS=45; -- max is 90
+SET DATA_RETENTION_TIME_IN_DAYS=45; -- max is 90, for enterprise and higher. For standard edition, maximum is 1.
 
 ALTER TABLE DEMO_DB.PUBLIC.EMP_BASIC_TRANSIENT
 SET DATA_RETENTION_TIME_IN_DAYS=1; -- options are 0 (disabled) or 1 (maximum)
@@ -6591,6 +6591,19 @@ $$
 
 
 
+-- About UDF overloads:
+
+
+-- They are "The ability for multiple UDFs to exist with 
+-- the same identifier, but different input arguments".
+
+-- Example:
+
+SUBSTR(col_name, 1, 3);
+SUBSTR(col_name, 1); -- different overloads
+
+
+
 
 -- MODULE 30 --
 
@@ -6638,7 +6651,7 @@ $$
                         
                   ACCOUNT-LEVEL OBJECTS
 
-USER ROLE  DATABASE    WAREHOUSE     OTHER ACCOUNT OBJECTS
+USER ROLE  DATABASE    WAREHOUSE   NETWORK POLICY   OTHER ACCOUNT OBJECTS
                         
 
                   SCHEMA-LEVEL OBJECTS
@@ -6654,6 +6667,7 @@ TABLE VIEW  STAGE   STORED PROCEDURE    UDF   OTHER SCHEMA OBJECTS
 
 -- The Snowflake default roles, on the other hand, are structured like this:
 
+                          ORGADMIN (creates and manages accounts)
 
                         ACCOUNTADMIN 
 
