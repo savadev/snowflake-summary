@@ -4029,6 +4029,9 @@ ALTER TASK CONTROL_DB.TASKS.S3_TASK RESUME;
 -- If our main table is huge and gets updated daily/on a two-day basis,
 -- MVs are not worth using.
 
+-- Materialized views impact your costs for both storage and compute resources. 
+-- Materialized views use storage to store your computed results
+-- and also use compute to keep your materialized views up to date.
 
 
 -- Snowflake MVs also have some query limitations. They cannot query:
