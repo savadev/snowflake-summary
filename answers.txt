@@ -1,13 +1,5 @@
 
 
-
-
-
-
-
-
-
-
 1) Due to the size of the two other tables (SHA_TO_UPS and RAW_TOPICS), I thought it 
 would be cheaper to recreate the final table (PREMADE_4EYES) than to copy data into 
 it progressively (because then we would probably need to run comparisons between the tables, 
