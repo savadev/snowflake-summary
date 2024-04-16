@@ -1093,6 +1093,7 @@ CREATE TABLE DEMO_DB.PUBLIC.LINEITEM_NO_SOS CLONE DEMO_DB.PUBLIC.LINEITEM_SOS;
 -- Add search optimization on certain columns - this creates/uses extra storage, so be careful (185gb table gets 30gb extra storage, for these 2 columns with SOS).
 ALTER TABLE DEMO_DB.PUBLIC.LINEITEM_SOS ADD SEARCH OPTIMIZATION ON EQUALITY(L_COMMENT);
 ALTER TABLE DEMO_DB.PUBLIC.LINEITEM_SOS ADD SEARCH OPTIMIZATION ON EQUALITY(L_ORDERKEY);
+ALTER TABLE DEMO_DB.PUBLIC.LINEITEM_SOS ADD SEARCH OPTIMIZATION ON SUBSTRING(HEM_ARRAY);
 
 -- Column "search_optimization" (ON/OFF). Also "search_optimization_bytes", which shows how much storage bytes (additional storage) is being spent with SOS.
 SHOW TABLES;
