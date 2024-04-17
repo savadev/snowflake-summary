@@ -97,10 +97,45 @@ ALTER SCHEMA TROVO.TEST
 SET DATA_RETENTION_TIME_IN_DAYS=0;
 
 
--- 0.5) Create Backup Stage:
+
+
+-- 0.4) Create FOUR_EYES_CSV_FORMAT:
+CREATE OR REPLACE FILE FORMAT FOUR_EYES.PUBLIC.FOUR_EYES_CSV_FORMAT
+    TYPE=CSV,
+    FIELD_DELIMITER=',',
+    SKIP_HEADER=1,
+    NULL_IF=('NULL', 'null')
+    COMPRESSION=gzip;
+
+
+-- 0.45) Create STORAGE INTEGRATION objects and Stages, in the new account, for the "TROVO_ADSLAB_STAGE", FOUR_EYES_STAGE_CSV and "AUDIENCELAB_BACKUP_STAGE" (FOUR_EYES_INTEGRATION):
+
+CREATE OR REPLACE STORAGE INTEGRATION FOUR_EYES_INTEGRATION
+    TYPE=EXTERNAL_STAGE
+    STORAGE_PROVIDER=S3
+    ENABLED=TRUE
+    STORAGE_AWS_ROLE_ARN='' -- a "snowflake" dedicated IAM user is needed, in AWS, to utilize this value
+    STORAGE_ALLOWED_LOCATIONS=('');
+
+CREATE OR REPLACE STORAGE INTEGRATION S3_INTEGRATION 
+    TYPE=EXTERNAL_STAGE 
+    STORAGE_PROVIDER='S3' 
+    STORAGE_AWS_ROLE_ARN='' 
+    STORAGE_AWS_EXTERNAL_ID='' 
+    ENABLED=true 
+    STORAGE_ALLOWED_LOCATIONS=('', '', '');
+
+-- 0.5) Create Backup Stage and FOUR_EYES_STAGE_CSV:
 
 CREATE OR REPLACE STAGE FOUR_EYES.PUBLIC.AUDIENCELAB_BACKUP_STAGE
     url='s3://audiencelab-4eyes/audiencelab_backup/'
+    STORAGE_INTEGRATION=FOUR_EYES_INTEGRATION
+    FILE_FORMAT=(
+        FORMAT_NAME='FOUR_EYES.PUBLIC.FOUR_EYES_CSV_FORMAT'
+    );
+
+CREATE OR REPLACE STAGE FOUR_EYES.PUBLIC.FOUR_EYES_STAGE_CSV
+    url='s3://audiencelab-4eyes/AIGDS/'
     STORAGE_INTEGRATION=FOUR_EYES_INTEGRATION
     FILE_FORMAT=(
         FORMAT_NAME='FOUR_EYES.PUBLIC.FOUR_EYES_CSV_FORMAT'
@@ -132,8 +167,6 @@ CREATE OR REPLACE ROLE PIXEL_AGENT;
 CREATE OR REPLACE ROLE STATISTICS_USER;
 
 -- 0.8) Grant PRIVILEGES TO ROLES:
-
-
 
 -- PIXEL_AGENT:
 GRANT USAGE ON DATABASE AUDIENCELAB_INTERNAL_PROD TO ROLE PIXEL_AGENT;
@@ -246,12 +279,11 @@ FROM (
       );
 
 
-
-
-
-
-
--- 1.5) Create STORAGE INTEGRATION objects and Stages, in the new account, for the "TROVO_ADSLAB_STAGE" and "AUDIENCELAB_BACKUP_STAGE"
+-- FOUR_EYES.PUBLIC.SHA_TO_UPS
+COPY INTO @FOUR_EYES.PUBLIC.AUDIENCELAB_BACKUP_STAGE/sha_to_ups
+FROM (
+    SELECT * FROM FOUR_EYES.PUBLIC.SHA_TO_UPS
+      );
 
 
 
@@ -974,8 +1006,8 @@ FROM (
     file_format=(TYPE=PARQUET NULL_IF=()) ;
 
 
--- FOUR_EYES.PUBLIC.PREMADE_4EYES_LITE:
-    CREATE OR REPLACE FOUR_EYES.PUBLIC.PREMADE_4EYES_LITE
+-- Create and populate FOUR_EYES.PUBLIC.PREMADE_4EYES_LITE:
+    CREATE OR REPLACE TRANSIENT TABLE FOUR_EYES.PUBLIC.PREMADE_4EYES_LITE
     AS 
     SELECT 
     TO_DATE(T.$1) AS DATE,
@@ -984,15 +1016,43 @@ FROM (
     FROM @FOUR_EYES.PUBLIC.AUDIENCELAB_BACKUP_STAGE/premade_4eyes_lite AS T;
 
 
+-- FOUR_EYES.PUBLIC.SHA_TO_UPS:
+    CREATE OR REPLACE TRANSIENT TABLE FOUR_EYES.PUBLIC.SHA_TO_UPS (
+	SHA256_LC_HEM VARCHAR(16777216),
+	UP_IDS ARRAY
+);
+
+-- Fill FOUR_EYES.PUBLIC.SHA_TO_UPS with data:
+    COPY INTO FOUR_EYES.PUBLIC.SHA_TO_UPS
+    FROM (
+        SELECT 
+        T.$1 AS SHA256_LC_HEM,
+        T.$2 AS UP_IDS
+        FROM @FOUR_EYES.PUBLIC.AUDIENCELAB_BACKUP_STAGE/sha_to_ups AS T
+    );
+
+-- FOUR_EYES.PUBLIC.RAW_TOPICS:
+    CREATE OR REPLACE TRANSIENT TABLE FOUR_EYES.PUBLIC.RAW_TOPICS (
+	SHA256_LC_HEM VARCHAR(16777216),
+	TOPIC VARCHAR(16777216),
+	DATE DATE
+);
 
 
 
+-- 3) Set up the PIPES that were used with the previous account (we need "FOUR_EYES_STAGE_CSV" Stage):
 
 
-
--- 3) Set up the PIPES that were used with the previous account:
-
-
+    CREATE OR REPLACE PIPE FOUR_EYES.PUBLIC.CSV_PIPE 
+    auto_ingest=true 
+    AS COPY INTO FOUR_EYES.PUBLIC.RAW_TOPICS
+    FROM (
+        SELECT 
+        T.$1 AS "SHA256_LC_HEM",
+        T.$3 AS "TOPIC", -- changed, before it was T.$2
+        TO_DATE(SUBSTR(METADATA$FILENAME, 10, 8), 'YYYYMMDD') AS DATE  -- Get the DATE Value
+        FROM @FOUR_EYES.PUBLIC.FOUR_EYES_STAGE_CSV AS T
+    );
 
 
 
@@ -1000,15 +1060,56 @@ FROM (
 -- 3.5) Set up the STREAMS that were used with the previous account:
 
 
+CREATE OR REPLACE STREAM FOUR_EYES.PUBLIC.RAW_TOPICS_STREAM 
+ON TABLE RAW_TOPICS 
+append_only = true;
 
+
+
+-- 3.6) Set up the PROCEDURES that were used with the previous account:
+
+-- DELETE_OLD_DATA() procedure:
+CREATE OR REPLACE PROCEDURE FOUR_EYES.PUBLIC.DELETE_OLD_DATA()
+RETURNS VARCHAR(16777216)
+LANGUAGE JAVASCRIPT
+EXECUTE AS CALLER
+AS '
+  var currentDate = new Date();
+  var sevenDaysAgo = new Date();
+  sevenDaysAgo.setDate(currentDate.getDate() - 7);
+
+  var formattedDate = sevenDaysAgo.toISOString().split(''T'')[0];
+
+  //return formattedDate;
+
+  //var sql_command = `DELETE FROM FOUR_EYES.TEST.PREMADE_4EYES_TEST
+   //             WHERE DATE < ''${formattedDate}''`
+
+   //var sql_command = `SELECT COUNT(*) AS Row_Count FROM FOUR_EYES.PUBLIC.PREMADE_4EYES_LITE
+    //            WHERE DATE < ''${formattedDate}''`;
+
+   var sql_command = `DELETE FROM FOUR_EYES.PUBLIC.PREMADE_4EYES_LITE
+                     WHERE DATE < ''${formattedDate}''`;
+
+                     
+  try {
+    var stmt = snowflake.createStatement({sqlText: sql_command});
+    var rs = stmt.execute();
+   return ''Old data successfully deleted.'';
+
+  //var row;
+  //while (rs.next()) {
+   // row = rs.getColumnValue(1);
+  //}
+  //return row;
+  } catch (err) {
+    return ''Error deleting old data: '' + err.message;
+  }
+';
 
 
 
 -- 4) Set up the TASKS that were used with the previous account:
-
-
-
-
 
 
 
@@ -1036,3 +1137,20 @@ WHEN
             CROSS JOIN
                 LATERAL FLATTEN(input => SHA_TO_UPS.UP_IDS) F;
 END;
+
+-- Start FOUR_EYES.PUBLIC.RAW_TOPICS_TASK:
+ALTER TASK FOUR_EYES.PUBLIC.RAW_TOPICS_TASK RESUME;
+
+
+
+
+-- Daily PREMADE_4EYES_LITE Delete Rows task:
+create or replace task FOUR_EYES.PUBLIC.DELETE_OLD_DATA_TASK
+	warehouse=ANALYST_WH
+	schedule='USING CRON 0 2 * * * America/Chicago'
+	COMMENT='Task to delete data from PREMADE_4EYES_LITE table older than 7 days from the current runtime'
+	as CALL FOUR_EYES.PUBLIC.DELETE_OLD_DATA();
+
+
+-- Start FOUR_EYES.PUBLIC.DELETE_OLD_DATA_TASK:
+ALTER TASK FOUR_EYES.PUBLIC.RAW_TOPICS_TASK RESUME;
