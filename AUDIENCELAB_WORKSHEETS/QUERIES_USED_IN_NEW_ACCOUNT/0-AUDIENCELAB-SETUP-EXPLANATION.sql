@@ -854,8 +854,7 @@ SELECT * FROM AUDIENCELAB_INTERNAL_PROD.PUBLIC.UNIVERSAL_PERSON LIMIT 100;
        UP_ID VARCHAR(16777216)
        );
 
-    -- This Table is considered Dynamic because it needs a number of objects to be created 
-    -- and maintained.
+    -- This Table is considered Dynamic because it needs a number of objects to be maintained.
 
     -- The two Tasks which constantly maintain this Table are "FOUR_EYES.PUBLIC.DELETE_OLD_DATA_TASK"
     -- and "FOUR_EYES.PUBLIC.RAW_TOPICS". One deletes rows older than 7 days, the other feeds in rows 
