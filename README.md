@@ -4,6 +4,9 @@ This project contains some insights and a general summary related to Snowflake, 
 
 ## Overview
 
+[![en](https://img.shields.io/badge/lang-en-red.svg?style=flat-square)](https://github.com/nothingnothings/snowflake-summary)
+[![pt-br](https://img.shields.io/badge/lang-pt--br-green.svg?style=flat-square)](https://github.com/nothingnothings/snowflake-summary/blob/master/README.pt-br.md)
+
 In this repository, you'll find a comprehensive SQL file named `COURSE_REVIEW.sql`. This file includes various topics, examples, and best practices pertaining to Snowflake. It serves as a useful resource for anyone looking to understand or enhance their knowledge of Snowflake's features and functionalities.
 
 ## Contents
