@@ -15,7 +15,7 @@ In this repository, you'll find a comprehensive SQL file named `COURSE_REVIEW.sq
   - Best practices for optimization
   - Tips for efficient data management
 
-## Getting Started
+## Usage
 
 To utilize the contents of this repository, follow these steps:
 
@@ -31,7 +31,6 @@ cd snowflake-course-review
 
 3. **Open the SQL file**: Use your preferred SQL editor or text editor (preferably Visual Studio Code, with the 'Bookmarks' extension) to explore the COURSE_REVIEW.sql file.
 
-## Usage
 
 Feel free to modify the SQL file to suit your learning needs or use it as a reference for your Snowflake projects. If you have any questions or need assistance, don't hesitate to reach out.
 
